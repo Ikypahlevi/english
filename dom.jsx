@@ -44,25 +44,22 @@ const callGeminiAPI = async (prompt, retries = 5) => {
   return null;
 };
 
-// Dữ liệu mẫu dựa trên hình ảnh được cung cấp
-const defaultVocab = [
-  { id: 1, word: "Good", ipa: "/gʊd/", meaning: "Tốt" },
-  { id: 2, word: "Thing", ipa: "/θɪŋ/", meaning: "Thứ, đồ vật" },
-  { id: 3, word: "Task", ipa: "/tæsk/", meaning: "Nhiệm vụ" },
-  { id: 4, word: "Manager", ipa: "/ˈmænɪdʒər/", meaning: "Người quản lý" },
-  { id: 5, word: "Hotel", ipa: "/hoʊˈtɛl/", meaning: "Khách sạn" },
-  { id: 6, word: "Bank", ipa: "/bæŋk/", meaning: "Ngân hàng" },
-  { id: 7, word: "Book", ipa: "/bʊk/", meaning: "Quyển sách" },
-  { id: 8, word: "Year", ipa: "/jɪər/", meaning: "Năm" },
-  { id: 9, word: "Museum", ipa: "/mjuˈziːəm/", meaning: "Bảo tàng" },
-  { id: 10, word: "People", ipa: "/ˈpiːpəl/", meaning: "Con người" },
-];
-
 export default function App() {
-  const [vocabList, setVocabList] = useState(defaultVocab);
+  const [vocabList, setVocabList] = useState([]);
   const [activeTab, setActiveTab] = useState("list"); // 'list', 'flashcard', 'quiz'
   const [isXlsxLoaded, setIsXlsxLoaded] = useState(false);
   const [readSheets, setReadSheets] = useState([]);
+  const [pendingWorkbook, setPendingWorkbook] = useState(null);
+  const [isQuizOngoing, setIsQuizOngoing] = useState(false);
+
+  const handleTabChange = (newTab) => {
+    if (isQuizOngoing && newTab !== activeTab) {
+      if (!window.confirm("Bạn đang kiểm tra dở, bạn có chắc muốn thoát ra không? Làm vậy hệ thống sẽ không ghi nhận điểm cho bài này.")) {
+        return;
+      }
+    }
+    setActiveTab(newTab);
+  };
 
   // Tải thư viện xlsx (SheetJS) động để đọc file Excel mà không cần cài đặt npm
   useEffect(() => {
@@ -92,62 +89,48 @@ export default function App() {
       const bstr = evt.target.result;
       const wb = window.XLSX.read(bstr, { type: "binary" });
       
-      const newVocab = [];
-      const freshlyReadSheets = [];
-      const sheetNamesAdded = [];
-
-      // Lặp qua tất cả các sheet theo thứ tự
-      for (const wsname of wb.SheetNames) {
-        const sheetKey = `${file.name}_${wsname}`;
-        
-        // Bỏ qua nếu sheet này đã đọc ròi
-        if (readSheets.includes(sheetKey)) {
-          continue;
-        }
-
-        const ws = wb.Sheets[wsname];
-        // Chuyển đổi sheet thành mảng các mảng (array of arrays)
-        const data = window.XLSX.utils.sheet_to_json(ws, { header: 1 });
-        let addedFromThisSheet = false;
-
-        // Bắt đầu từ dòng 1 (bỏ qua dòng 0 là Header: STT, Tiếng Anh, IPA, Tiếng Việt)
-        for (let i = 1; i < data.length; i++) {
-          const row = data[i];
-          if (row && row.length >= 4 && row[1]) {
-            // Đảm bảo có cột Tiếng Anh (cột B - index 1)
-            newVocab.push({
-              id: Date.now() + newVocab.length + i,
-              word: row[1] ? row[1].toString().trim() : "",
-              ipa: row[2] ? row[2].toString().trim() : "",
-              meaning: row[3] ? row[3].toString().trim() : "",
-            });
-            addedFromThisSheet = true;
-          }
-        }
-
-        freshlyReadSheets.push(sheetKey);
-        if (addedFromThisSheet) {
-          sheetNamesAdded.push(wsname);
-          break; // Dừng lại sau khi thêm thành công 1 sheet
-        }
-      }
-
-      if (newVocab.length > 0) {
-        setVocabList([...vocabList, ...newVocab]);
-        setReadSheets([...readSheets, ...freshlyReadSheets]);
-        alert(`Đã thêm thành công ${newVocab.length} từ vựng từ khối dữ liệu mới: ${sheetNamesAdded.join(", ")}`);
-      } else if (freshlyReadSheets.length === 0) {
-        alert("Tất cả các sheet trong file này đều đã được đọc trước đó!");
-      } else {
-        setReadSheets([...readSheets, ...freshlyReadSheets]);
-        alert(
-          "Không tìm thấy dữ liệu hợp lệ trong các sheet mới. Vui lòng đảm bảo file Excel có cấu trúc cột: STT | Tiếng Anh | IPA | Tiếng Việt",
-        );
-      }
-      // Reset input
+      setPendingWorkbook({ file, wb });
       e.target.value = null;
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleSheetSelection = (wsname) => {
+    if (!pendingWorkbook) return;
+    const { wb, file } = pendingWorkbook;
+    const sheetKey = `${file.name}_${wsname}`;
+    const ws = wb.Sheets[wsname];
+    
+    // Chuyển đổi sheet thành mảng các mảng (array of arrays)
+    const data = window.XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const newVocab = [];
+
+    // Bắt đầu từ dòng 1 (bỏ qua dòng 0 là Header: STT, Tiếng Anh, IPA, Tiếng Việt)
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row && row.length >= 4 && row[1]) {
+        newVocab.push({
+          id: Date.now() + i,
+          word: row[1] ? row[1].toString().trim() : "",
+          ipa: row[2] ? row[2].toString().trim() : "",
+          meaning: row[3] ? row[3].toString().trim() : "",
+        });
+      }
+    }
+
+    if (newVocab.length > 0) {
+      setVocabList(prev => [...prev, ...newVocab]);
+      if (!readSheets.includes(sheetKey)) {
+        setReadSheets(prev => [...prev, sheetKey]);
+      }
+      alert(`Đã thêm thành công ${newVocab.length} từ vựng từ sheet: ${wsname}`);
+    } else {
+      if (!readSheets.includes(sheetKey)) {
+        setReadSheets(prev => [...prev, sheetKey]);
+      }
+      alert(`Không tìm thấy dữ liệu hợp lệ trong sheet "${wsname}". Vui lòng đảm bảo file Excel có cấu trúc cột: STT | Cột 2 (Tiếng Anh) | Cột 3 (IPA) | Cột 4 (Tiếng Việt)`);
+    }
+    setPendingWorkbook(null);
   };
 
   const deleteWord = (id) => {
@@ -165,19 +148,19 @@ export default function App() {
           </div>
           <nav className="flex bg-slate-100 p-1 rounded-xl">
             <button
-              onClick={() => setActiveTab("list")}
+              onClick={() => handleTabChange("list")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "list" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
             >
               <BookOpen size={18} /> Từ vựng
             </button>
             <button
-              onClick={() => setActiveTab("flashcard")}
+              onClick={() => handleTabChange("flashcard")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "flashcard" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
             >
               <Layers size={18} /> Flashcards
             </button>
             <button
-              onClick={() => setActiveTab("quiz")}
+              onClick={() => handleTabChange("quiz")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "quiz" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
             >
               <CheckCircle2 size={18} /> Kiểm tra
@@ -219,10 +202,52 @@ export default function App() {
             {activeTab === "flashcard" && (
               <FlashcardView vocabList={vocabList} />
             )}
-            {activeTab === "quiz" && <QuizView vocabList={vocabList} />}
+            {activeTab === "quiz" && <QuizView vocabList={vocabList} setIsQuizOngoing={setIsQuizOngoing} />}
           </>
         )}
       </main>
+
+      {/* Modal Chọn Sheet */}
+      {pendingWorkbook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Chọn trang tính (Sheet)</h3>
+            <p className="text-slate-500 text-sm mb-4">
+              Từ tệp: <span className="font-semibold text-indigo-600">{pendingWorkbook.file.name}</span>
+            </p>
+            <div className="max-h-[50vh] overflow-y-auto pr-2 space-y-2 mb-6 pointer-events-auto">
+              {pendingWorkbook.wb.SheetNames.map((wsname) => {
+                const sheetKey = `${pendingWorkbook.file.name}_${wsname}`;
+                const isRead = readSheets.includes(sheetKey);
+                return (
+                  <button
+                    key={wsname}
+                    onClick={() => handleSheetSelection(wsname)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 flex justify-between items-center transition-colors ${
+                      isRead 
+                        ? "bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100" 
+                        : "bg-white border-indigo-100 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 shadow-sm"
+                    }`}
+                  >
+                    <span className="font-medium truncate pr-4">{wsname}</span>
+                    {isRead ? (
+                      <span className="text-xs bg-slate-200 text-slate-500 px-2 py-1 rounded-md whitespace-nowrap">Đã nhập</span>
+                    ) : (
+                      <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-md whitespace-nowrap font-medium">Chọn</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setPendingWorkbook(null)}
+              className="w-full py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              Hủy bỏ thao tác
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -677,43 +702,136 @@ function FlashcardView({ vocabList }) {
   );
 }
 
+// Function hỗ trợ kiểm tra tiếng Việt tương đối (không dấu, gần nghĩa)
+function isApproximateMatch(typed, correct) {
+  if (!typed || !correct) return false;
+  const removeAccents = (str) => str.toLowerCase()
+    .replace(/[àáạảãâăằắặẳẵâầấậẩẫ]/g, "a")
+    .replace(/[èéẹẻẽêềếệểễ]/g, "e")
+    .replace(/[ìíịỉĩ]/g, "i")
+    .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, "o")
+    .replace(/[ùúụủũưừứựửữ]/g, "u")
+    .replace(/[ỳýỵỷỹ]/g, "y")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+    
+  const t = removeAccents(typed);
+  const c = removeAccents(correct);
+  if (t === c) return true;
+  
+  // Tách theo dấu phẩy, chấm phẩy (để bắt được nhiều nghĩa)
+  const parts = correct.split(/[,;|/]/).map(removeAccents);
+  if (parts.includes(t)) return true;
+  
+  // Chấp nhận nếu phần nhập vào chứa 1 từ khóa có độ dài bằng 50%
+  if (c.includes(t) && t.length >= c.length * 0.5 && t.length >= 3) return true;
+  
+  return false;
+}
+
 // --- TAB 3: BÀI KIỂM TRA ---
-function QuizView({ vocabList }) {
+function QuizView({ vocabList, setIsQuizOngoing }) {
   const [gameState, setGameState] = useState("start"); // 'start', 'playing', 'result'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
+  const [chunkIndex, setChunkIndex] = useState(0);
+  const [wordsPerQuiz, setWordsPerQuiz] = useState(50);
+  const [quizType, setQuizType] = useState("multiple_choice");
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const inputRef = React.useRef(null);
+
+  // Đồng bộ trạng thái chơi với thẻ App để cảnh báo thoát
+  React.useEffect(() => {
+    if (setIsQuizOngoing) setIsQuizOngoing(gameState === "playing");
+    return () => { if (setIsQuizOngoing) setIsQuizOngoing(false); }
+  }, [gameState, setIsQuizOngoing]);
+
+  // Autofocus tự động khi chuyển câu
+  React.useEffect(() => {
+    if (gameState === "playing" && !isAnswerChecked && inputRef.current) {
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.focus();
+      }, 50);
+    }
+    
+    // Tự động phát âm thanh nếu ở chế độ nghe
+    if (gameState === "playing" && !isAnswerChecked && quizType.startsWith("listening")) {
+      const currentQ = questions[currentQuestionIndex];
+      // Thêm setTimeout ngắn để trình duyệt không block autoplay
+      setTimeout(() => {
+        if (currentQ && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(currentQ.wordObject.word);
+          utterance.lang = "en-US";
+          utterance.rate = 0.85;
+          window.speechSynthesis.speak(utterance);
+        }
+      }, 300);
+    }
+  }, [currentQuestionIndex, isAnswerChecked, gameState, quizType, questions]);
 
   // Tạo đề kiểm tra
-  const startQuiz = () => {
+  const startQuiz = (isNext = false) => {
     if (vocabList.length < 4) {
       alert("Cần ít nhất 4 từ vựng để tạo bài kiểm tra trắc nghiệm!");
       return;
     }
 
-    // Chọn ngẫu nhiên 50 từ (hoặc ít hơn nếu danh sách nhỏ)
-    const numQuestions = Math.min(50, vocabList.length);
-    const shuffledList = [...vocabList].sort(() => 0.5 - Math.random());
-    const quizWords = shuffledList.slice(0, numQuestions);
+    let nextChunk = chunkIndex;
+    // Cập nhật lên chunk tiếp theo nếu người dùng chọn
+    if (isNext === true) {
+      nextChunk++;
+      if (nextChunk * wordsPerQuiz >= vocabList.length) {
+        nextChunk = 0; // Quay lại từ đầu nếu đã chạy hết danh sách
+      }
+      setChunkIndex(nextChunk);
+    }
+
+    const startIndex = nextChunk * wordsPerQuiz;
+    const endIndex = Math.min(startIndex + wordsPerQuiz, vocabList.length);
+    const chunkWords = vocabList.slice(startIndex, endIndex);
+
+    // Xáo trộn lung tung vị trí các từ trong chunk này
+    const quizWords = [...chunkWords].sort(() => 0.5 - Math.random());
 
     const generatedQuestions = quizWords.map((word) => {
-      // Lấy 3 đáp án sai ngẫu nhiên
-      const wrongAnswers = vocabList
-        .filter((w) => w.id !== word.id)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3)
-        .map((w) => w.meaning);
+      let promptText = word.word;
+      let promptSub = word.ipa;
+      let correctAnswerText = word.meaning;
+      let options = [];
 
-      const options = [...wrongAnswers, word.meaning].sort(
-        () => 0.5 - Math.random(),
-      );
+      if (quizType === "typing_vi_to_en") {
+        promptText = word.meaning;
+        promptSub = "";
+        correctAnswerText = word.word;
+      } else if (quizType === "multiple_choice") {
+        const wrongAnswers = vocabList
+          .filter((w) => w.id !== word.id)
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 3)
+          .map((w) => w.meaning);
+        options = [...wrongAnswers, word.meaning].sort(() => 0.5 - Math.random());
+      } else if (quizType === "listening_en_to_vi") {
+        promptSub = "";
+        correctAnswerText = word.meaning;
+      } else if (quizType === "listening_en_to_en") {
+        promptSub = "";
+        correctAnswerText = word.word;
+      }
 
       return {
-        word: word,
-        options: options,
-        correctAnswer: word.meaning,
+        wordObject: word,
+        promptText,
+        promptSub,
+        correctAnswerText,
+        options,
+        type: quizType,
+        correctAnswer: word.meaning // Vẫn giữ cho tương thích cũ nếu cần
       };
     });
 
@@ -722,6 +840,7 @@ function QuizView({ vocabList }) {
     setScore(0);
     setGameState("playing");
     setSelectedAnswer(null);
+    setTypedAnswer("");
     setIsAnswerChecked(false);
   };
 
@@ -747,6 +866,31 @@ function QuizView({ vocabList }) {
     }, 1500);
   };
 
+  const handleTypeSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (isAnswerChecked || !typedAnswer.trim()) return;
+    
+    setIsAnswerChecked(true);
+    const currentQ = questions[currentQuestionIndex];
+    
+    // Sử dụng thuật toán so sánh chuỗi gần nghĩa/tiếng Việt không dấu
+    const isCorrect = isApproximateMatch(typedAnswer, currentQ.correctAnswerText);
+    
+    if (isCorrect) {
+      setScore(score + 1);
+    }
+    
+    setTimeout(() => {
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setTypedAnswer("");
+        setIsAnswerChecked(false);
+      } else {
+        setGameState("result");
+      }
+    }, 2000); // Đợi 2s để người dùng kịp đọc đáp án đúng nếu sai
+  };
+
   if (gameState === "start") {
     return (
       <div className="max-w-xl mx-auto text-center bg-white p-10 rounded-2xl shadow-sm border border-slate-100">
@@ -756,16 +900,63 @@ function QuizView({ vocabList }) {
         <h2 className="text-2xl font-bold text-slate-800 mb-4">
           Kiểm tra trắc nghiệm
         </h2>
-        <p className="text-slate-600 mb-8">
-          Bài kiểm tra sẽ chọn ngẫu nhiên các từ vựng trong danh sách của bạn để
-          ôn tập. Yêu cầu danh sách có ít nhất 4 từ.
+        <p className="text-slate-600 mb-6">
+          Bài kiểm tra sẽ chia từ vựng của bạn thành các nhóm nhỏ theo tiến độ. Yêu cầu danh sách có ít nhất 4 từ.
         </p>
-        <button
-          onClick={startQuiz}
-          className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200"
-        >
-          Bắt đầu kiểm tra
-        </button>
+
+        <div className="mb-8 flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="flex flex-col items-start gap-2">
+            <label className="text-sm font-medium text-slate-500 uppercase tracking-wider">Hình thức</label>
+            <select 
+              value={quizType}
+              onChange={(e) => setQuizType(e.target.value)}
+              className="px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 font-medium text-slate-700 bg-white shadow-sm cursor-pointer min-w-[200px]"
+            >
+              <option value="multiple_choice">Trắc nghiệm</option>
+              <option value="typing_en_to_vi">Gõ từ: Anh ➔ Việt</option>
+              <option value="typing_vi_to_en">Gõ từ: Việt ➔ Anh</option>
+              <option value="listening_en_to_vi">Nghe ➔ Gõ Việt</option>
+              <option value="listening_en_to_en">Nghe ➔ Gõ Anh</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col items-start gap-2">
+            <label className="text-sm font-medium text-slate-500 uppercase tracking-wider">Số lượng</label>
+            <select 
+              value={wordsPerQuiz}
+              onChange={(e) => {
+                 setWordsPerQuiz(Number(e.target.value));
+                 setChunkIndex(0); // Reset nhóm khi thay đổi số lượng
+              }}
+              className="px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 font-medium text-slate-700 bg-white shadow-sm cursor-pointer min-w-[150px]"
+            >
+              <option value={10}>10 từ</option>
+              <option value={20}>20 từ</option>
+              <option value={30}>30 từ</option>
+              <option value={50}>50 từ</option>
+              <option value={100}>100 từ</option>
+              <option value={vocabList.length}>Tất cả ({vocabList.length} từ)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <button
+            onClick={() => startQuiz(false)}
+            className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200"
+          >
+            {chunkIndex > 0 ? `Kiểm tra Nhóm ${chunkIndex + 1}` : `Bắt đầu (${Math.min(wordsPerQuiz, vocabList.length)} từ)`}
+          </button>
+          
+          {chunkIndex > 0 && (
+            <button
+              onClick={() => { setChunkIndex(0); setTimeout(() => startQuiz(false), 0); }}
+              className="px-8 py-3 bg-white text-indigo-600 font-medium rounded-xl border border-indigo-200 hover:bg-indigo-50 transition-colors shadow-sm"
+            >
+              Làm lại từ đầu
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -787,12 +978,21 @@ function QuizView({ vocabList }) {
               ? "Rất tốt! Tiếp tục phát huy nhé."
               : "Cố gắng hơn nữa nhé! Ôn lại Flashcard sẽ giúp ích đấy."}
         </p>
-        <button
-          onClick={startQuiz}
-          className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200"
-        >
-          Làm lại bài kiểm tra
-        </button>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <button
+            onClick={() => startQuiz(false)}
+            className="px-8 py-3 bg-white text-indigo-600 font-medium rounded-xl border border-indigo-200 hover:bg-indigo-50 transition-colors shadow-sm"
+          >
+            Làm lại nhóm từ hiện tại
+          </button>
+          
+          <button
+            onClick={() => startQuiz(true)}
+            className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200"
+          >
+            {((chunkIndex + 1) * wordsPerQuiz >= vocabList.length) ? `Quay lại ${wordsPerQuiz} từ đầu tiên` : `Kiểm tra ${wordsPerQuiz} từ tiếp theo`}
+          </button>
+        </div>
       </div>
     );
   }
@@ -811,46 +1011,144 @@ function QuizView({ vocabList }) {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center mb-6">
-        <h3 className="text-4xl font-bold text-slate-800 mb-2">
-          {currentQ.word.word}
-        </h3>
-        {currentQ.word.ipa && (
-          <p className="text-slate-500 font-mono">{currentQ.word.ipa}</p>
+        <div className="flex justify-center items-center gap-3 mb-2">
+          {currentQ.type.startsWith("listening") ? (
+             <button
+              onClick={(e) => {
+                if (e) e.preventDefault();
+                if ("speechSynthesis" in window) {
+                  window.speechSynthesis.cancel();
+                  const utterance = new SpeechSynthesisUtterance(currentQ.wordObject?.word);
+                  utterance.lang = "en-US";
+                  utterance.rate = 0.85;
+                  window.speechSynthesis.speak(utterance);
+                }
+              }}
+              className="p-6 text-white bg-indigo-500 hover:bg-indigo-600 rounded-full transition-transform hover:scale-105 active:scale-95 cursor-pointer shadow-lg shadow-indigo-200 animate-pulse"
+              title="Nghe lại"
+            >
+              <Volume2 size={48} />
+            </button>
+          ) : (
+            <>
+              <h3 className="text-4xl font-bold text-slate-800">
+                {currentQ.promptText || currentQ.wordObject?.word}
+              </h3>
+              {currentQ.type !== "typing_vi_to_en" && (
+                <button
+                  onClick={(e) => {
+                    if (e) e.preventDefault();
+                    if ("speechSynthesis" in window) {
+                      window.speechSynthesis.cancel();
+                      const utterance = new SpeechSynthesisUtterance(currentQ.wordObject?.word || currentQ.promptText);
+                      utterance.lang = "en-US";
+                      utterance.rate = 0.85;
+                      window.speechSynthesis.speak(utterance);
+                    }
+                  }}
+                  className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors cursor-pointer"
+                  title="Nghe phát âm"
+                >
+                  <Volume2 size={28} />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        {currentQ.promptSub && !currentQ.type.startsWith("listening") && (
+          <p className="text-slate-500 font-mono">{currentQ.promptSub}</p>
         )}
         <p className="text-sm text-slate-400 mt-6">
-          Chọn nghĩa đúng của từ trên
+          {currentQ.type === "multiple_choice" ? "Chọn nghĩa đúng của từ trên" : currentQ.type.startsWith("listening") ? "Nghe và gõ lại đáp án chính xác" : "Gõ đáp án chính xác"}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {currentQ.options.map((option, index) => {
-          let btnClass =
-            "bg-white border-2 border-slate-100 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50";
+      {currentQ.type === "multiple_choice" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {currentQ.options.map((option, index) => {
+            let btnClass =
+              "bg-white border-2 border-slate-100 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50";
 
-          if (isAnswerChecked) {
-            if (option === currentQ.correctAnswer) {
-              btnClass =
-                "bg-green-100 border-2 border-green-500 text-green-800 font-medium";
-            } else if (option === selectedAnswer) {
-              btnClass = "bg-red-100 border-2 border-red-500 text-red-800";
-            } else {
-              btnClass =
-                "bg-white border-2 border-slate-100 text-slate-400 opacity-50";
+            if (isAnswerChecked) {
+              if (option === currentQ.correctAnswerText || option === currentQ.correctAnswer) {
+                btnClass =
+                  "bg-green-100 border-2 border-green-500 text-green-800 font-medium";
+              } else if (option === selectedAnswer) {
+                btnClass = "bg-red-100 border-2 border-red-500 text-red-800";
+              } else {
+                btnClass =
+                  "bg-white border-2 border-slate-100 text-slate-400 opacity-50";
+              }
             }
-          }
 
-          return (
-            <button
-              key={index}
-              onClick={() => handleAnswerClick(option)}
-              disabled={isAnswerChecked}
-              className={`p-4 rounded-xl text-lg transition-all duration-200 w-full text-center ${btnClass}`}
-            >
-              {option}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswerClick(option)}
+                disabled={isAnswerChecked}
+                className={`p-4 rounded-xl text-lg transition-all duration-200 w-full text-center ${btnClass}`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <form onSubmit={handleTypeSubmit} className="flex flex-col gap-4">
+          <input
+            type="text"
+            ref={inputRef}
+            value={typedAnswer}
+            onChange={(e) => setTypedAnswer(e.target.value)}
+            disabled={isAnswerChecked}
+            autoFocus
+            className={`w-full p-4 rounded-xl border-2 text-center text-xl font-medium focus:outline-none transition-colors ${
+              isAnswerChecked 
+                ? (isApproximateMatch(typedAnswer, currentQ.correctAnswerText) 
+                    ? "border-green-500 bg-green-50 text-green-800 focus:border-green-500" 
+                    : "border-red-500 bg-red-50 text-red-800 focus:border-red-500")
+                : "border-slate-200 focus:border-indigo-500 bg-white text-slate-800"
+            }`}
+            placeholder="Gõ câu trả lời vào đây..."
+          />
+          
+          {isAnswerChecked && !isApproximateMatch(typedAnswer, currentQ.correctAnswerText) && (
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-center animate-in fade-in slide-in-from-top-2">
+              <p className="text-sm mb-1 opacity-80">Đáp án đúng là:</p>
+              <div className="flex justify-center items-center gap-2">
+                <p className="font-bold text-2xl">{currentQ.correctAnswerText}</p>
+                {currentQ.type === "typing_vi_to_en" || currentQ.type.startsWith("listening") ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      if (e) e.preventDefault();
+                      if ("speechSynthesis" in window) {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(currentQ.wordObject?.word);
+                        utterance.lang = "en-US";
+                        utterance.rate = 0.85;
+                        window.speechSynthesis.speak(utterance);
+                      }
+                    }}
+                    className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded-full transition-colors cursor-pointer"
+                    title="Nghe phát âm"
+                  >
+                    <Volume2 size={24} />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
+          
+          <button
+            type="submit"
+            disabled={isAnswerChecked || !typedAnswer.trim()}
+            className="w-full py-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            Xác nhận
+          </button>
+        </form>
+      )}
     </div>
   );
 }
