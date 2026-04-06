@@ -192,17 +192,6 @@ export default function App() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!window.confirm("Bạn có chắc muốn xóa TOÀN BỘ dữ liệu?\nHành động này không thể hoàn tác!")) return;
-    try {
-      await axios.delete(`${API_BASE}/topics`);
-      setTopics([]);
-      backToTopics();
-    } catch (err) {
-      alert("Xóa thất bại: " + err.message);
-    }
-  };
-
   if (isLoadingTopics) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -258,7 +247,6 @@ export default function App() {
             backToTopics={backToTopics}
             handleFileUpload={handleFileUpload}
             handleDeleteTopic={handleDeleteTopic}
-            handleClearAll={handleClearAll}
           />
         )}
         {activeTab === "flashcard" && (
@@ -436,7 +424,7 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing }) {
 function VocabListView({
   topics, selectedTopic, vocabList, isLoadingVocab,
   selectTopic, backToTopics, handleFileUpload,
-  handleDeleteTopic, handleClearAll,
+  handleDeleteTopic,
 }) {
   // === Giao diện CHỌN TOPIC (khi chưa chọn topic nào) ===
   if (!selectedTopic) {
@@ -455,14 +443,6 @@ function VocabListView({
               <span>Nhập từ file Excel</span>
               <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileUpload} />
             </label>
-            {topics.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors border border-red-200"
-              >
-                <Trash2 size={18} /> Xóa tất cả
-              </button>
-            )}
           </div>
         </div>
 
