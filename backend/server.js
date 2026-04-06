@@ -6,7 +6,12 @@ const app = express();
 const PORT = 3001;
 
 // ========== MIDDLEWARE ==========
-app.use(cors());                          // Cho phép React (localhost:5173) gọi API
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://english-brown-seven.vercel.app"
+  ]
+}));
 app.use(express.json({ limit: "50mb" })); // Parse JSON body, tăng limit cho file lớn
 
 // ========== API ENDPOINTS ==========
