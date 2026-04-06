@@ -22,7 +22,7 @@ import {
 import axios from "axios";
 
 // Base URL của Backend Node.js
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
 // Hàm gọi API Gemini dùng chung với cơ chế Exponential Backoff và cấu trúc JSON
 const callGeminiAPI = async (prompt, retries = 5) => {
