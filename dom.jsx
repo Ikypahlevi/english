@@ -24,32 +24,6 @@ import axios from "axios";
 // Base URL của Backend Node.js
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
-// Hàm gọi API Gemini dùng chung với cơ chế Exponential Backoff và cấu trúc JSON
-const callGeminiAPI = async (prompt, retries = 5) => {
-  const apiKey = "";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json" },
-  };
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return JSON.parse(text);
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await new Promise((res) => setTimeout(res, 1000 * Math.pow(2, i)));
-    }
-  }
-  return null;
-};
-
 export default function App() {
   // === State: dữ liệu từ Database ===
   const [topics, setTopics] = useState([]);
@@ -685,7 +659,7 @@ function isApproximateMatch(typed, correct) {
 
 // --- TAB 3: BÀI KIỂM TRA ---
 function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
-  const [gameState, setGameState] = useState("start");
+  const [gameState, setGameState] = useState("start"); // 'start', 'playing', 'reviewing_wrong', 'result'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [questions, setQuestions] = useState([]);
@@ -697,8 +671,14 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
   const [typedAnswer, setTypedAnswer] = useState("");
   const inputRef = React.useRef(null);
 
+  // Mới: State phục vụ Error-Driven Spaced Repetition và AI
+  const [wrongQuestionsQueue, setWrongQuestionsQueue] = useState([]);
+  const [mistakeRounds, setMistakeRounds] = useState(0);
+  const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [checkResult, setCheckResult] = useState(null); // { isCorrect, reason }
+
   React.useEffect(() => {
-    if (setIsQuizOngoing) setIsQuizOngoing(gameState === "playing");
+    if (setIsQuizOngoing) setIsQuizOngoing(["playing", "reviewing_wrong"].includes(gameState));
     return () => { if (setIsQuizOngoing) setIsQuizOngoing(false); };
   }, [gameState, setIsQuizOngoing]);
 
@@ -748,29 +728,95 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
     setQuestions(generatedQuestions);
     setCurrentQuestionIndex(0); setScore(0); setGameState("playing");
     setSelectedAnswer(null); setTypedAnswer(""); setIsAnswerChecked(false);
+    setWrongQuestionsQueue([]); setMistakeRounds(0); setCheckResult(null);
+  };
+
+  const proceedToNext = (wasCorrect) => {
+    const isLastQuestion = currentQuestionIndex === questions.length - 1;
+    const nextWrongQueue = wasCorrect ? wrongQuestionsQueue : [...wrongQuestionsQueue, questions[currentQuestionIndex]];
+
+    if (isLastQuestion) {
+        if (nextWrongQueue.length > 0) {
+            setWrongQuestionsQueue(nextWrongQueue);
+            setGameState("reviewing_wrong");
+        } else {
+            setGameState("result");
+        }
+    } else {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setTypedAnswer("");
+        setSelectedAnswer(null);
+        setIsAnswerChecked(false);
+        setCheckResult(null);
+        if (!wasCorrect) setWrongQuestionsQueue(nextWrongQueue);
+    }
+  };
+
+  const startMistakeReviewRound = () => {
+      setQuestions([...wrongQuestionsQueue].sort(() => 0.5 - Math.random()));
+      setCurrentQuestionIndex(0);
+      setWrongQuestionsQueue([]);
+      setMistakeRounds(prev => prev + 1);
+      setGameState("playing");
+      setTypedAnswer("");
+      setSelectedAnswer(null);
+      setIsAnswerChecked(false);
+      setCheckResult(null);
   };
 
   const handleAnswerClick = (option) => {
     if (isAnswerChecked) return;
-    setSelectedAnswer(option); setIsAnswerChecked(true);
-    if (option === questions[currentQuestionIndex].correctAnswer) setScore(score + 1);
+    setSelectedAnswer(option); 
+    setIsAnswerChecked(true);
+    
+    const isCorrect = option === questions[currentQuestionIndex].correctAnswerText || option === questions[currentQuestionIndex].correctAnswer;
+    if (isCorrect && mistakeRounds === 0) setScore(prev => prev + 1);
+
     setTimeout(() => {
-      if (currentQuestionIndex < questions.length - 1) { setCurrentQuestionIndex(currentQuestionIndex + 1); setSelectedAnswer(null); setIsAnswerChecked(false); }
-      else setGameState("result");
+        proceedToNext(isCorrect);
     }, 1500);
   };
 
-  const handleTypeSubmit = (e) => {
+  const handleTypeSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (isAnswerChecked || !typedAnswer.trim()) return;
-    setIsAnswerChecked(true);
+    if (isAnswerChecked || !typedAnswer.trim() || isSubmittingAnswer) return;
+    
     const currentQ = questions[currentQuestionIndex];
-    const isCorrect = isApproximateMatch(typedAnswer, currentQ.correctAnswerText);
-    if (isCorrect) setScore(score + 1);
+    let isCorrectMatches = isApproximateMatch(typedAnswer, currentQ.correctAnswerText);
+    let finalIsCorrect = isCorrectMatches;
+    let finalReason = "";
+
+    if (!isCorrectMatches && currentQ.type.endsWith("to_vi")) {
+        setIsSubmittingAnswer(true);
+        try {
+            const res = await axios.post(`${API_BASE}/check-answer`, {
+                word: currentQ.wordObject.word,
+                correctMeaning: currentQ.correctAnswerText,
+                userAnswer: typedAnswer
+            });
+            if (res.data.success) {
+                finalIsCorrect = res.data.data.isCorrect;
+                finalReason = res.data.data.reason;
+            } else {
+                finalReason = "Lỗi kết nối AI";
+            }
+        } catch (error) {
+            console.error(error);
+            finalReason = "Lỗi server";
+        }
+        setIsSubmittingAnswer(false);
+    }
+
+    setCheckResult({ isCorrect: finalIsCorrect, reason: finalReason });
+    setIsAnswerChecked(true);
+
+    if (finalIsCorrect && mistakeRounds === 0) {
+        setScore(prev => prev + 1);
+    }
+    
     setTimeout(() => {
-      if (currentQuestionIndex < questions.length - 1) { setCurrentQuestionIndex(currentQuestionIndex + 1); setTypedAnswer(""); setIsAnswerChecked(false); }
-      else setGameState("result");
-    }, 2000);
+       proceedToNext(finalIsCorrect);
+    }, 2500);
   };
 
   if (gameState === "start") {
@@ -785,9 +831,9 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
             <label className="text-sm font-medium text-slate-500 uppercase tracking-wider">Hình thức</label>
             <select value={quizType} onChange={(e) => setQuizType(e.target.value)} className="px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 font-medium text-slate-700 bg-white shadow-sm cursor-pointer min-w-[200px]">
               <option value="multiple_choice">Trắc nghiệm</option>
-              <option value="typing_en_to_vi">Gõ từ: Anh ➔ Việt</option>
+              <option value="typing_en_to_vi">Gõ từ: Anh ➔ Việt (Có AI chấm)</option>
               <option value="typing_vi_to_en">Gõ từ: Việt ➔ Anh</option>
-              <option value="listening_en_to_vi">Nghe ➔ Gõ Việt</option>
+              <option value="listening_en_to_vi">Nghe ➔ Gõ Việt (Có AI chấm)</option>
               <option value="listening_en_to_en">Nghe ➔ Gõ Anh</option>
             </select>
           </div>
@@ -811,17 +857,37 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
     );
   }
 
+  if (gameState === "reviewing_wrong") {
+      return (
+        <div className="max-w-xl mx-auto text-center bg-white p-10 rounded-2xl shadow-sm border border-rose-100 animate-in fade-in slide-in-from-bottom-4">
+            <div className="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <RotateCcw size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Chưa xong đâu!</h2>
+            <p className="text-lg text-slate-600 mb-6">
+                Bạn đã hoàn thành lượt làm bài, nhưng vẫn còn <span className="font-bold text-rose-500">{wrongQuestionsQueue.length} câu</span> bị sai. Hãy cùng sửa lại các lỗi sai trước đó để ghi nhớ lâu hơn nhé!
+            </p>
+            <button onClick={startMistakeReviewRound} className="px-8 py-3 bg-rose-500 text-white font-medium rounded-xl hover:bg-rose-600 transition-colors shadow-md shadow-rose-200">
+                Bắt đầu sửa lỗi ({wrongQuestionsQueue.length} câu)
+            </button>
+        </div>
+      );
+  }
+
   if (gameState === "result") {
-    const percentage = Math.round((score / questions.length) * 100);
+    const totalQuestionsOriginal = Math.min(wordsPerQuiz, vocabList.length);
+    const percentage = Math.round((score / totalQuestionsOriginal) * 100);
     return (
       <div className="max-w-xl mx-auto text-center bg-white p-10 rounded-2xl shadow-sm border border-slate-100">
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">Kết quả của bạn</h2>
-        <div className="text-6xl font-black text-indigo-600 my-6">{score} / {questions.length}</div>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">Hoàn thành xuất sắc!</h2>
+        <div className="text-6xl font-black text-indigo-600 my-6">{score} <span className="text-3xl text-slate-400">/ {totalQuestionsOriginal}</span></div>
         <p className="text-lg text-slate-600 mb-8">
-          {percentage === 100 ? "Tuyệt vời! Bạn đã nhớ tất cả." : percentage >= 70 ? "Rất tốt! Tiếp tục phát huy." : "Cố gắng hơn nhé! Ôn lại Flashcard sẽ giúp ích."}
+          {percentage === 100 && mistakeRounds === 0 
+            ? "Tuyệt vời! Bạn trả lời đúng 100% ngay ở vòng đầu tiên." 
+            : `Bạn đã ôn lại và vượt qua toàn bộ từ vựng sau ${mistakeRounds} lượt sửa lỗi.`}
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button onClick={() => startQuiz(false)} className="px-8 py-3 bg-white text-indigo-600 font-medium rounded-xl border border-indigo-200 hover:bg-indigo-50 transition-colors shadow-sm">Làm lại nhóm từ hiện tại</button>
+          <button onClick={() => startQuiz(false)} className="px-8 py-3 bg-white text-indigo-600 font-medium rounded-xl border border-indigo-200 hover:bg-indigo-50 transition-colors shadow-sm">Làm lại bài này</button>
           <button onClick={() => startQuiz(true)} className="px-8 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200">
             {((chunkIndex + 1) * wordsPerQuiz >= vocabList.length) ? `Quay lại ${wordsPerQuiz} từ đầu tiên` : `Kiểm tra ${wordsPerQuiz} từ tiếp theo`}
           </button>
@@ -835,8 +901,11 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-6 px-2">
-        <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Câu {currentQuestionIndex + 1} / {questions.length}</span>
-        <span className="text-sm text-slate-500 font-medium">Điểm: {score}</span>
+        <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+            {mistakeRounds > 0 ? "🔄 Vòng sửa lỗi: " : "📋 Vòng 1: "}
+            Câu {currentQuestionIndex + 1} / {questions.length}
+        </span>
+        <span className="text-sm text-amber-500 font-semibold bg-amber-50 px-3 py-1 rounded-full">Điểm (vòng 1): {score}</span>
       </div>
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center mb-6">
         <div className="flex justify-center items-center gap-3 mb-2">
@@ -864,27 +933,38 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack }) {
               else if (option === selectedAnswer) btnClass = "bg-red-100 border-2 border-red-500 text-red-800";
               else btnClass = "bg-white border-2 border-slate-100 text-slate-400 opacity-50";
             }
-            return (<button key={index} onClick={() => handleAnswerClick(option)} disabled={isAnswerChecked} className={`p-4 rounded-xl text-lg transition-all duration-200 w-full text-center ${btnClass}`}>{option}</button>);
+            return (<button key={index} onClick={() => handleAnswerClick(option)} disabled={isAnswerChecked} className={`p-4 rounded-xl text-lg transition-all duration-200 w-full text-center ${btnClass} ${isAnswerChecked ? "pointer-events-none" : ""}`}>{option}</button>);
           })}
         </div>
       ) : (
-        <form onSubmit={handleTypeSubmit} className="flex flex-col gap-4">
-          <input type="text" ref={inputRef} value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} disabled={isAnswerChecked} autoFocus
+        <form onSubmit={handleTypeSubmit} className="flex flex-col gap-4 relative">
+          <input type="text" ref={inputRef} value={typedAnswer} onChange={(e) => setTypedAnswer(e.target.value)} disabled={isAnswerChecked || isSubmittingAnswer} autoFocus
             className={`w-full p-4 rounded-xl border-2 text-center text-xl font-medium focus:outline-none transition-colors ${
-              isAnswerChecked ? (isApproximateMatch(typedAnswer, currentQ.correctAnswerText) ? "border-green-500 bg-green-50 text-green-800" : "border-red-500 bg-red-50 text-red-800") : "border-slate-200 focus:border-indigo-500 bg-white text-slate-800"
+              isAnswerChecked 
+                ? (checkResult?.isCorrect ? "border-green-500 bg-green-50 text-green-800" : "border-rose-500 bg-rose-50 text-rose-800") 
+                : "border-slate-200 focus:border-indigo-500 bg-white text-slate-800"
             }`} placeholder="Gõ câu trả lời vào đây..." />
-          {isAnswerChecked && !isApproximateMatch(typedAnswer, currentQ.correctAnswerText) && (
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-center">
-              <p className="text-sm mb-1 opacity-80">Đáp án đúng là:</p>
-              <div className="flex justify-center items-center gap-2">
+          
+          {isAnswerChecked && !checkResult?.isCorrect && (
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-center animate-in fade-in slide-in-from-top-2">
+              <p className="text-sm mb-1 opacity-80">Đáp án chuẩn là:</p>
+              <div className="flex justify-center items-center gap-2 mb-2">
                 <p className="font-bold text-2xl">{currentQ.correctAnswerText}</p>
                 {(currentQ.type === "typing_vi_to_en" || currentQ.type.startsWith("listening")) && (
                   <button type="button" onClick={(e) => { if (e) e.preventDefault(); if ("speechSynthesis" in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(currentQ.wordObject?.word); u.lang = "en-US"; u.rate = 0.85; window.speechSynthesis.speak(u); } }} className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded-full transition-colors cursor-pointer" title="Nghe"><Volume2 size={24} /></button>
                 )}
               </div>
+              {checkResult?.reason && (
+                  <div className="inline-flex items-center justify-center gap-2 bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-sm font-medium mt-2 w-full text-left">
+                      <Sparkles size={16} className="text-rose-500 flex-shrink-0" /> <span className="flex-1">Nhận xét AI: {checkResult.reason}</span>
+                  </div>
+              )}
             </div>
           )}
-          <button type="submit" disabled={isAnswerChecked || !typedAnswer.trim()} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">Xác nhận</button>
+          
+          <button type="submit" disabled={isAnswerChecked || !typedAnswer.trim() || isSubmittingAnswer} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2">
+            {isSubmittingAnswer ? <><Loader2 size={20} className="animate-spin" /> AI đang kiểm tra...</> : "Xác nhận"}
+          </button>
         </form>
       )}
     </div>

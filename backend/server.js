@@ -182,6 +182,48 @@ app.delete("/api/topics", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/check-answer
+ * Chấm điểm câu trả lời qua AI (Gemini)
+ */
+app.post("/api/check-answer", async (req, res) => {
+  const { word, correctMeaning, userAnswer } = req.body;
+  if (!word || !correctMeaning || !userAnswer) return res.status(400).json({ success: false, message: "Thiếu dữ liệu" });
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || ""; 
+    const prompt = `Bạn là giám khảo chấm điểm từ vựng tiếng Anh. Từ gốc: "${word}". Nghĩa chuẩn: "${correctMeaning}". Câu trả lời của người học: "${userAnswer}". Đánh giá xem câu trả lời có đồng nghĩa cơ bản hoặc bao hàm ý nghĩa trong ngữ cảnh không (Có thể châm chước lỗi chính tả nhỏ). Trả về KẾT QUẢ ĐÚNG CHUẨN ĐỊNH DẠNG JSON (Tuyệt đối không kèm ký tự thừa hay markdown block như \`\`\`json): { "isCorrect": true/false, "reason": "Lý do ngắn gọn tối đa 15 chữ" }`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" },
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+       return res.json({ success: true, data: { isCorrect: false, reason: "Lỗi kết nối AI" } });
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
+      const result = JSON.parse(text);
+      res.json({ success: true, data: result });
+    } else {
+      res.json({ success: true, data: { isCorrect: false, reason: "AI không trả lời" } });
+    }
+  } catch (error) {
+    console.error("AI check error:", error);
+    res.json({ success: true, data: { isCorrect: false, reason: "Lỗi nội bộ AI" } });
+  }
+});
+
 // ========== START SERVER ==========
 app.listen(PORT, () => {
   console.log(`\n🚀 EngMaster API đang chạy tại: http://localhost:${PORT}`);
