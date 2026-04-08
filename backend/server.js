@@ -191,12 +191,27 @@ app.post("/api/check-answer", async (req, res) => {
   if (!word || !correctMeaning || !userAnswer) return res.status(400).json({ success: false, message: "Thiếu dữ liệu" });
 
   try {
+    // Đọc API Key từ môi trường (Nên tạo file .env và nạp thông qua dotenv package)
     const apiKey = process.env.GEMINI_API_KEY || ""; 
-    const prompt = `Bạn là giám khảo chấm điểm từ vựng tiếng Anh. Từ gốc: "${word}". Nghĩa chuẩn: "${correctMeaning}". Câu trả lời của người học: "${userAnswer}". Đánh giá xem câu trả lời có đồng nghĩa cơ bản hoặc bao hàm ý nghĩa trong ngữ cảnh không (Có thể châm chước lỗi chính tả nhỏ). Trả về KẾT QUẢ ĐÚNG CHUẨN ĐỊNH DẠNG JSON (Tuyệt đối không kèm ký tự thừa hay markdown block như \`\`\`json): { "isCorrect": true/false, "reason": "Lý do ngắn gọn tối đa 15 chữ" }`;
+    
+    const prompt = `Bạn là giám khảo máy móc chấm điểm từ vựng tiếng Anh.
+Từ gốc: "${word}"
+Nghĩa chuẩn: "${correctMeaning}"
+Câu trả lời của người dùng: "${userAnswer}"
+
+Luật chấm điểm:
+1. Chỉ chấm điểm dựa trên ngữ nghĩa (chấp nhận từ đồng nghĩa, bao hàm ý nghĩa, bỏ qua hoa/thường, dấu câu).
+2. TUYỆT ĐỐI KHÔNG giải thích thêm.
+3. Bắt buộc CHỈ trả về duy nhất chuỗi JSON chuẩn theo format sau (không markdown, không code block):
+{
+  "isCorrect": boolean,
+  "reason": "string ngắn giải thích lý do"
+}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
+      // Yêu cầu AI luôn trả về cấu trúc JSON hợp lệ
       generationConfig: { responseMimeType: "application/json" },
     };
 
@@ -207,20 +222,43 @@ app.post("/api/check-answer", async (req, res) => {
     });
     
     if (!response.ok) {
-       return res.json({ success: true, data: { isCorrect: false, reason: "Lỗi kết nối AI" } });
+       throw new Error(`API AI Error - Status: ${response.status}`);
     }
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) {
-      const result = JSON.parse(text);
-      res.json({ success: true, data: result });
-    } else {
-      res.json({ success: true, data: { isCorrect: false, reason: "AI không trả lời" } });
+    
+    if (!text) {
+      throw new Error("AI trả về kết quả rỗng");
     }
+
+    // Quan trọng: Dùng Regex cắt đúng đoạn JSON ({ ... }) từ văn bản để phòng hờ AI sinh ra markdown hoặc text dư thừa
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+       throw new Error("Không giải mã được JSON từ phản hồi của AI");
+    }
+
+    const result = JSON.parse(jsonMatch[0]);
+    res.json({ success: true, data: result });
+
   } catch (error) {
-    console.error("AI check error:", error);
-    res.json({ success: true, data: { isCorrect: false, reason: "Lỗi nội bộ AI" } });
+    // Tình huống B: Fallback khi AI có lỗi mạng/Rate limit (Hạn chế nghẽn server)
+    console.warn("⚠️ AI fallback được sử dụng do lỗi:", error.message);
+    
+    const normalizedUser = String(userAnswer).trim().toLowerCase();
+    const normalizedCorrect = String(correctMeaning).trim().toLowerCase();
+    const correctParts = normalizedCorrect.split(/[,;|/]/).map(p => p.trim());
+    
+    const fallbackCorrect = correctParts.includes(normalizedUser) || 
+                           (normalizedCorrect.includes(normalizedUser) && normalizedUser.length >= (normalizedCorrect.length * 0.5) && normalizedUser.length >= 3);
+
+    res.json({ 
+        success: true, 
+        data: { 
+            isCorrect: fallbackCorrect, 
+            reason: fallbackCorrect ? "Đúng (Chấm tự động dự phòng)" : "Chưa chính xác (Hệ thống dự phòng)" 
+        } 
+    });
   }
 });
 
