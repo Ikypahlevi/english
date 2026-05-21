@@ -166,6 +166,24 @@ export default function App() {
     }
   };
 
+  const handleDeleteVocab = async (vocabId, word) => {
+    if (!window.confirm(`Xóa từ vựng "${word}"?`)) return;
+    try {
+      await axios.delete(`${API_BASE}/vocabularies/${vocabId}`);
+      setVocabList(prev => prev.filter(v => v.vocabulary_id !== vocabId));
+      
+      // Update count locally
+      setTopics(prev => prev.map(t => {
+        if (selectedTopic && t.topic_id === selectedTopic.topic_id) {
+          return { ...t, vocab_count: t.vocab_count - 1 };
+        }
+        return t;
+      }));
+    } catch (err) {
+      alert("Xóa thất bại: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   if (isLoadingTopics) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -221,6 +239,7 @@ export default function App() {
             backToTopics={backToTopics}
             handleFileUpload={handleFileUpload}
             handleDeleteTopic={handleDeleteTopic}
+            handleDeleteVocab={handleDeleteVocab}
           />
         )}
         {activeTab === "flashcard" && (
@@ -398,7 +417,7 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing }) {
 function VocabListView({
   topics, selectedTopic, vocabList, isLoadingVocab,
   selectTopic, backToTopics, handleFileUpload,
-  handleDeleteTopic,
+  handleDeleteTopic, handleDeleteVocab
 }) {
   // === Giao diện CHỌN TOPIC (khi chưa chọn topic nào) ===
   if (!selectedTopic) {
@@ -483,20 +502,30 @@ function VocabListView({
                 <th className="py-3 px-6 font-semibold">Tiếng Anh</th>
                 <th className="py-3 px-6 font-semibold">Phát âm IPA</th>
                 <th className="py-3 px-6 font-semibold">Tiếng Việt</th>
+                <th className="py-3 px-6 font-semibold w-24 text-center">Xóa</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {vocabList.map((item, index) => (
-                <tr key={item.vocabulary_id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={item.vocabulary_id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="py-3 px-6 text-center text-slate-500">{index + 1}</td>
                   <td className="py-3 px-6 font-medium text-slate-800">{item.word}</td>
                   <td className="py-3 px-6 text-slate-600 font-mono text-sm">{item.ipa}</td>
                   <td className="py-3 px-6 text-slate-700">{item.meaning}</td>
+                  <td className="py-3 px-6 text-center">
+                    <button
+                      onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)}
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      title="Xóa từ này"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {vocabList.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="py-8 text-center text-slate-500">
+                  <td colSpan="5" className="py-8 text-center text-slate-500">
                     Không có từ vựng trong chủ điểm này.
                   </td>
                 </tr>

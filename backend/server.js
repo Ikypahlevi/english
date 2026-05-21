@@ -169,6 +169,19 @@ app.delete("/api/topics/:topicId", async (req, res) => {
 });
 
 /**
+ * DELETE /api/vocabularies/:vocabId
+ * Xóa 1 từ vựng cụ thể
+ */
+app.delete("/api/vocabularies/:vocabId", async (req, res) => {
+  try {
+    await pool.execute("DELETE FROM vocabularies WHERE vocabulary_id = ?", [req.params.vocabId]);
+    res.json({ success: true, message: "Đã xóa từ vựng." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * DELETE /api/topics
  * Xóa toàn bộ topics + vocabularies
  */
