@@ -133,7 +133,7 @@ export default function App() {
           });
         }
       }
-      return { sheetName: wsname, vocabularies };
+      return { sheetName: wsname, fileName: pendingWorkbook.file.name, vocabularies };
     }).filter(s => s.vocabularies.length > 0);
 
     if (apiPayload.length === 0) {
@@ -159,10 +159,13 @@ export default function App() {
     if (!window.confirm(`Xóa buổi "${topicName}" và toàn bộ từ vựng?`)) return;
     try {
       await axios.delete(`${API_BASE}/topics/${topicId}`);
+      if (selectedTopic && selectedTopic.topic_id === topicId) {
+        setSelectedTopic(null);
+        setVocabList([]);
+      }
       await fetchTopics();
-      if (selectedTopic?.topic_id === topicId) backToTopics();
     } catch (err) {
-      alert("Xóa thất bại: " + err.message);
+      alert("Lỗi khi xóa chủ điểm.");
     }
   };
 
@@ -171,16 +174,9 @@ export default function App() {
     try {
       await axios.delete(`${API_BASE}/vocabularies/${vocabId}`);
       setVocabList(prev => prev.filter(v => v.vocabulary_id !== vocabId));
-      
-      // Update count locally
-      setTopics(prev => prev.map(t => {
-        if (selectedTopic && t.topic_id === selectedTopic.topic_id) {
-          return { ...t, vocab_count: t.vocab_count - 1 };
-        }
-        return t;
-      }));
+      await fetchTopics(); // Cập nhật lại số lượng từ vựng trong danh sách topic
     } catch (err) {
-      alert("Xóa thất bại: " + (err.response?.data?.message || err.message));
+      alert("Lỗi khi xóa từ vựng.");
     }
   };
 
@@ -421,6 +417,13 @@ function VocabListView({
 }) {
   // === Giao diện CHỌN TOPIC (khi chưa chọn topic nào) ===
   if (!selectedTopic) {
+    // Nhóm các chủ điểm (sheet) theo session_name (tên file)
+    const groupedTopics = topics.reduce((acc, topic) => {
+      const groupName = topic.session_name || "Chủ điểm hệ thống";
+      if (!acc[groupName]) acc[groupName] = [];
+      acc[groupName].push(topic);
+      return acc;
+    }, {});
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -446,25 +449,35 @@ function VocabListView({
             <p className="text-sm mt-1">Hãy nhập file Excel để bắt đầu.</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {topics.map((topic) => (
-              <div key={topic.topic_id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50/80 transition-colors group">
-                <button onClick={() => selectTopic(topic)} className="flex-1 text-left flex items-center gap-4">
-                  <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0">
-                    {topic.vocab_count}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-800">{topic.topic_name}</p>
-                    <p className="text-xs text-slate-400">{topic.vocab_count} từ vựng • {new Date(topic.created_at).toLocaleDateString("vi-VN")}</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleDeleteTopic(topic.topic_id, topic.topic_name)}
-                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                  title="Xóa buổi này"
-                >
-                  <Trash2 size={16} />
-                </button>
+          <div className="flex flex-col">
+            {Object.entries(groupedTopics).map(([groupName, groupTopics]) => (
+              <div key={groupName} className="border-b border-slate-100 last:border-0">
+                <div className="px-6 py-2 bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <BookOpen size={14} />
+                  {groupName}
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {groupTopics.map((topic) => (
+                    <div key={topic.topic_id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50/80 transition-colors group">
+                      <button onClick={() => selectTopic(topic)} className="flex-1 text-left flex items-center gap-4">
+                        <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0">
+                          {topic.vocab_count}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800">{topic.topic_name}</p>
+                          <p className="text-xs text-slate-400">{topic.vocab_count} từ vựng • {new Date(topic.created_at).toLocaleDateString("vi-VN")}</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTopic(topic.topic_id, topic.topic_name)}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        title="Xóa buổi này"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -502,12 +515,12 @@ function VocabListView({
                 <th className="py-3 px-6 font-semibold">Tiếng Anh</th>
                 <th className="py-3 px-6 font-semibold">Phát âm IPA</th>
                 <th className="py-3 px-6 font-semibold">Tiếng Việt</th>
-                <th className="py-3 px-6 font-semibold w-24 text-center">Xóa</th>
+                <th className="py-3 px-6 font-semibold w-16 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {vocabList.map((item, index) => (
-                <tr key={item.vocabulary_id} className="hover:bg-slate-50/50 transition-colors group">
+                <tr key={item.vocabulary_id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-3 px-6 text-center text-slate-500">{index + 1}</td>
                   <td className="py-3 px-6 font-medium text-slate-800">{item.word}</td>
                   <td className="py-3 px-6 text-slate-600 font-mono text-sm">{item.ipa}</td>
@@ -515,8 +528,8 @@ function VocabListView({
                   <td className="py-3 px-6 text-center">
                     <button
                       onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      title="Xóa từ này"
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      title="Xóa từ vựng này"
                     >
                       <Trash2 size={16} />
                     </button>

@@ -62,16 +62,16 @@ app.post("/api/topics/import", async (req, res) => {
     let totalVocabularies = 0;
 
     for (const sheet of sheetsData) {
-      const { sheetName, vocabularies } = sheet;
+      const { sheetName, fileName, vocabularies } = sheet;
 
       // Bỏ qua sheet không có từ vựng hợp lệ
       if (!vocabularies || vocabularies.length === 0) continue;
 
       // --- Bước 1: INSERT vào bảng `topics` ---
-      // Lưu tên sheet vào cả topic_name và session_name
+      // Lưu tên sheet vào topic_name, tên file vào session_name
       const [topicResult] = await connection.execute(
         "INSERT INTO topics (topic_name, session_name) VALUES (?, ?)",
-        [sheetName, sheetName]
+        [sheetName, fileName || sheetName]
       );
       const topicId = topicResult.insertId; // Lấy topic_id vừa tạo
       totalTopics++;
@@ -174,7 +174,15 @@ app.delete("/api/topics/:topicId", async (req, res) => {
  */
 app.delete("/api/vocabularies/:vocabId", async (req, res) => {
   try {
-    await pool.execute("DELETE FROM vocabularies WHERE vocabulary_id = ?", [req.params.vocabId]);
+    const vocabId = req.params.vocabId;
+    
+    // Xóa từ vựng
+    const [result] = await pool.execute("DELETE FROM vocabularies WHERE vocabulary_id = ?", [vocabId]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy từ vựng." });
+    }
+    
     res.json({ success: true, message: "Đã xóa từ vựng." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
