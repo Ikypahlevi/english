@@ -4,6 +4,7 @@ const cors = require("cors");
 const pool = require("./db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
