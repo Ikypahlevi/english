@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, FileText, LogOut, User, Flame
 } from "lucide-react";
 import axios from "axios";
-import confetti from "https://cdn.skypack.dev/canvas-confetti";
+import confetti from "canvas-confetti";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
