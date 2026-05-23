@@ -265,15 +265,6 @@ export default function App() {
     }
   };
 
-  if (!user) {
-    return (
-      <>
-        <ToastContainer />
-        <AuthScreen onLoginSuccess={setUser} />
-      </>
-    );
-  }
-
   // ── Load XLSX ─────────────────────────────────────────────────
   useEffect(() => {
     const script = document.createElement("script");
@@ -400,6 +391,15 @@ export default function App() {
     { id: "flashcard", icon: Layers,         label: "Flashcards" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
   ];
+
+  if (!user) {
+    return (
+      <>
+        <ToastContainer />
+        <AuthScreen onLoginSuccess={setUser} />
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
