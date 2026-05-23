@@ -4,7 +4,7 @@ import {
   RotateCcw, CheckCircle2, XCircle, Sparkles, Loader2, Volume2,
   Lightbulb, Trash2, FolderOpen, ArrowLeft, Database, Sun, Moon,
   FileSpreadsheet, LayoutDashboard, BookMarked, BrainCircuit, Zap,
-  ChevronDown, ChevronUp, FileText, LogOut, User, Flame
+  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock
 } from "lucide-react";
 import axios from "axios";
 import confetti from "canvas-confetti";
@@ -28,7 +28,6 @@ axios.interceptors.response.use((response) => response, (error) => {
 });
 
 // ── Âm thanh ────────────────────────────────────────────────────────
-// Sử dụng các Data URI âm thanh ngắn để không cần tải file ngoài
 const playSound = (type) => {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -107,18 +106,6 @@ function ToastContainer() {
       </div>
     </div>
   );
-}
-
-// ── Gemini helper ───────────────────────────────────────────────────
-async function callGeminiAPI(prompt) {
-  try {
-    const res = await axios.post(`${API_BASE}/check-answer`, { 
-      word: "AI", correctMeaning: "AI", userAnswer: "AI", _prompt_override: prompt 
-    });
-    // Trick: Dùng lại endpoint check-answer cho mục đích chung tạm thời hoặc viết endpoint riêng
-    // Hiện tại tạm thời gọi dummy nếu không có endpoint riêng
-    return { english: "Example sentence", vietnamese: "Câu ví dụ" }; 
-  } catch { return null; }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -208,9 +195,10 @@ export default function App() {
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [vocabList, setVocabList] = useState([]);
+  
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [isLoadingVocab, setIsLoadingVocab] = useState(false);
-  const [activeTab, setActiveTab] = useState("list");
+  const [activeTab, setActiveTab] = useState("review"); // Đổi mặc định sang tab Ôn tập
   const [isXlsxLoaded, setIsXlsxLoaded] = useState(false);
   const [pendingWorkbook, setPendingWorkbook] = useState(null);
   const [selectedSheets, setSelectedSheets] = useState([]);
@@ -387,8 +375,9 @@ export default function App() {
   const totalVocab = useMemo(() => topics.reduce((s, t) => s + Number(t.vocab_count || 0), 0), [topics]);
 
   const navItems = [
-    { id: "list",      icon: BookOpen,      label: "Từ vựng" },
-    { id: "flashcard", icon: Layers,         label: "Flashcards" },
+    { id: "review",    icon: CalendarClock,  label: "Ôn tập" },
+    { id: "list",      icon: BookOpen,       label: "Kho từ" },
+    { id: "flashcard", icon: Layers,         label: "Thẻ bài" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
   ];
 
@@ -498,6 +487,11 @@ export default function App() {
              <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-brand-500" size={40} /></div>
           ) : (
             <>
+              {activeTab === "review" && (
+                <div className="animate-slide-up">
+                  <DailyReviewView addXP={addXP} setIsQuizOngoing={setIsQuizOngoing} />
+                </div>
+              )}
               {activeTab === "list" && (
                 <div className="animate-slide-up">
                   <VocabListView
@@ -529,17 +523,17 @@ export default function App() {
           )}
         </main>
 
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/90 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex transition-colors duration-300">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/90 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex transition-colors duration-300 pb-safe">
           {navItems.map(({ id, icon: Icon, label }) => (
             <button key={id} onClick={() => handleTabChange(id)}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] sm:text-xs font-medium transition-all ${
                 activeTab === id ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"
               }`}>
-              <Icon size={20} /><span>{label}</span>
+              <Icon size={20} className="mb-0.5" /><span>{label}</span>
             </button>
           ))}
-          <button onClick={handleLogout} className="flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium text-slate-400 dark:text-slate-500 transition-all">
-            <LogOut size={20} /><span>Thoát</span>
+          <button onClick={handleLogout} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] sm:text-xs font-medium text-slate-400 dark:text-slate-500 transition-all">
+            <LogOut size={20} className="mb-0.5" /><span>Thoát</span>
           </button>
         </nav>
       </div>
@@ -554,6 +548,92 @@ export default function App() {
           handleImportSelectedSheets={handleImportSelectedSheets}
           onCancel={() => { setPendingWorkbook(null); setSelectedSheets([]); }}
         />
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DAILY REVIEW VIEW (SRS)
+// ══════════════════════════════════════════════════════════════════
+function DailyReviewView({ addXP, setIsQuizOngoing }) {
+  const [reviews, setReviews] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [mode, setMode] = useState(null); // 'flashcard' or 'quiz'
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const fetchReviews = async () => {
+    setIsLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/reviews/today`);
+      setReviews(res.data.data || []);
+    } catch (err) {
+      showToast("Lỗi tải danh sách ôn tập", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFinishReview = () => {
+    setMode(null);
+    fetchReviews(); // Reload to see if any are left
+  };
+
+  if (isLoading) {
+    return <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-brand-500" size={40} /></div>;
+  }
+
+  if (mode === "flashcard") {
+    return <FlashcardView vocabList={reviews} onBack={handleFinishReview} addXP={addXP} updateSRS={true} onComplete={handleFinishReview} />;
+  }
+
+  if (mode === "quiz") {
+    return <QuizView vocabList={reviews} setIsQuizOngoing={setIsQuizOngoing} onBack={handleFinishReview} addXP={addXP} updateSRS={true} onComplete={handleFinishReview} />;
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-8 text-white text-center mb-6 shadow-xl relative overflow-hidden">
+        <Sparkles size={120} className="absolute -top-10 -right-10 text-indigo-400 opacity-20 rotate-12" />
+        <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 relative z-10">
+          <CalendarClock size={32} />
+        </div>
+        <h2 className="text-2xl font-bold mb-2 relative z-10">Mục tiêu hôm nay</h2>
+        
+        {reviews.length > 0 ? (
+          <p className="text-white/90 text-sm relative z-10">Bạn có <span className="font-bold text-amber-300 text-lg">{reviews.length}</span> từ vựng cần ôn lại để không bị quên.</p>
+        ) : (
+          <p className="text-white/90 text-sm relative z-10">Tuyệt vời! Bạn đã hoàn thành tất cả mục tiêu ôn tập hôm nay.</p>
+        )}
+      </div>
+
+      {reviews.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button onClick={() => setMode('flashcard')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-md">
+            <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Layers size={24} />
+            </div>
+            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1">Ôn bằng Flashcard</h3>
+            <p className="text-xs text-slate-500">Tự đánh giá trí nhớ của bản thân qua thẻ lật</p>
+          </button>
+
+          <button onClick={() => setMode('quiz')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-md">
+            <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <BrainCircuit size={24} />
+            </div>
+            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1">Ôn bằng Bài tập</h3>
+            <p className="text-xs text-slate-500">Hệ thống sẽ tự chấm điểm và tính toán lại lịch ôn</p>
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl text-center shadow-sm">
+          <CheckCircle2 size={64} className="mx-auto text-emerald-500 mb-4" />
+          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Đã học xong!</h3>
+          <p className="text-slate-500 text-sm">Hệ thống Spaced Repetition (SRS) ghi nhận trí nhớ của bạn rất tốt. Hãy quay lại vào ngày mai để duy trì chuỗi Streak nhé.</p>
+        </div>
       )}
     </div>
   );
@@ -779,8 +859,8 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
   };
 
   if (isReady && loadedVocab.length > 0) {
-    if (mode === "flashcard") return <FlashcardView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} />;
-    if (mode === "quiz") return <QuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} />;
+    if (mode === "flashcard") return <FlashcardView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
+    if (mode === "quiz") return <QuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
   }
 
   const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : "from-brand-600 to-brand-500";
@@ -821,22 +901,54 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// FLASHCARD VIEW
+// FLASHCARD VIEW (SRS Enabled)
 // ══════════════════════════════════════════════════════════════════
-function FlashcardView({ vocabList, onBack, addXP }) {
+function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Phím tắt (Keyboard shortcuts)
+  const submitRating = async (rating) => {
+    const word = vocabList[currentIndex];
+    
+    // Nếu chế độ updateSRS được bật, gọi API cập nhật tiến độ
+    if (updateSRS) {
+      try {
+        await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: word.vocabulary_id, rating });
+      } catch (err) { console.error("Lỗi cập nhật SRS"); }
+    }
+    
+    if (rating >= 3) addXP(2); // Cộng điểm cho những từ nhớ tốt
+    
+    // Tự động chuyển thẻ
+    if (currentIndex < vocabList.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setIsFlipped(false);
+    } else {
+      showToast("Hoàn thành bài tập Flashcard!", "success");
+      if (onComplete) onComplete();
+      else onBack();
+    }
+  };
+
+  // Keyboard Shortcuts (1, 2, 3, 4) for rating when flipped, Space for flip
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space') { e.preventDefault(); setIsFlipped(f => !f); }
-      if (e.code === 'ArrowRight') { setCurrentIndex(p => (p + 1) % vocabList.length); setIsFlipped(false); addXP(1); }
-      if (e.code === 'ArrowLeft') { setCurrentIndex(p => (p - 1 + vocabList.length) % vocabList.length); setIsFlipped(false); }
+      if (e.code === 'Space') { 
+        e.preventDefault(); 
+        setIsFlipped(f => !f); 
+      }
+      
+      // Nếu mặt sau đang lật, cho phép dùng số 1-4 để đánh giá
+      if (isFlipped) {
+        if (e.key === '1') submitRating(0); // Quên
+        if (e.key === '2') submitRating(2); // Khó
+        if (e.key === '3') submitRating(4); // Tốt
+        if (e.key === '4') submitRating(5); // Dễ
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [vocabList.length, addXP]);
+  }, [currentIndex, isFlipped, vocabList]);
 
   const currentWord = vocabList[currentIndex];
   const progress = ((currentIndex + 1) / vocabList.length) * 100;
@@ -853,27 +965,43 @@ function FlashcardView({ vocabList, onBack, addXP }) {
         <div className={`flip-inner w-full h-full ${isFlipped ? "flipped" : ""}`}>
           <div className="flip-front bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 flex flex-col justify-center shadow-xl">
             <h2 className="text-5xl font-bold text-slate-900 dark:text-white mb-2">{currentWord.word}</h2>
-            {currentWord.ipa && <p className="text-brand-500 font-mono">{currentWord.ipa}</p>}
-            <p className="absolute bottom-6 inset-x-0 text-xs text-slate-400">Ấn Space để lật</p>
+            {currentWord.ipa && <p className="text-brand-500 font-mono text-xl">{currentWord.ipa}</p>}
+            <p className="absolute bottom-6 inset-x-0 text-xs text-slate-400 font-medium">Nhấn Space để lật</p>
           </div>
-          <div className="flip-back bg-brand-600 rounded-3xl flex flex-col justify-center text-white shadow-xl">
+          <div className="flip-back bg-brand-600 rounded-3xl flex flex-col justify-center text-white shadow-xl relative">
             <h2 className="text-4xl font-bold px-4">{currentWord.meaning}</h2>
           </div>
         </div>
       </div>
       
-      <div className="flex justify-center gap-6">
-        <button onClick={() => { setCurrentIndex((currentIndex - 1 + vocabList.length) % vocabList.length); setIsFlipped(false); }} className="w-14 h-14 rounded-full border-2 border-slate-200 flex items-center justify-center hover:bg-slate-100 text-slate-600"><ChevronLeft/></button>
-        <button onClick={() => { setCurrentIndex((currentIndex + 1) % vocabList.length); setIsFlipped(false); addXP(1); }} className="w-14 h-14 rounded-full border-2 border-brand-500 flex items-center justify-center hover:bg-brand-50 text-brand-600"><ChevronRight/></button>
-      </div>
+      {isFlipped ? (
+        <div className="grid grid-cols-4 gap-2 animate-fade-in">
+          <button onClick={() => submitRating(0)} className="py-4 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold rounded-2xl hover:bg-rose-200 border-2 border-transparent hover:border-rose-300 transition-all flex flex-col items-center">
+            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 1</span> Quên
+          </button>
+          <button onClick={() => submitRating(2)} className="py-4 bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-bold rounded-2xl hover:bg-orange-200 border-2 border-transparent hover:border-orange-300 transition-all flex flex-col items-center">
+            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 2</span> Khó
+          </button>
+          <button onClick={() => submitRating(4)} className="py-4 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-bold rounded-2xl hover:bg-emerald-200 border-2 border-transparent hover:border-emerald-300 transition-all flex flex-col items-center">
+            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 3</span> Tốt
+          </button>
+          <button onClick={() => submitRating(5)} className="py-4 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold rounded-2xl hover:bg-blue-200 border-2 border-transparent hover:border-blue-300 transition-all flex flex-col items-center">
+            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 4</span> Dễ
+          </button>
+        </div>
+      ) : (
+        <div className="h-16 opacity-50 flex items-center justify-center text-sm font-medium text-slate-400">
+          Hãy cố gắng nhớ nghĩa của từ trước khi lật thẻ
+        </div>
+      )}
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// QUIZ VIEW
+// QUIZ VIEW (SRS Enabled)
 // ══════════════════════════════════════════════════════════════════
-function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP }) {
+function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onComplete }) {
   const [questions, setQuestions] = useState([]);
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -903,15 +1031,24 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [gameState, selected, index, questions]);
 
-  const handleAnswer = (opt) => {
+  const handleAnswer = async (opt) => {
     if (selected) return;
     setSelected(opt);
-    const isCorrect = opt === questions[index].meaning;
+    const q = questions[index];
+    const isCorrect = opt === q.meaning;
+    
     if (isCorrect) {
       playSound('correct');
       setScore(s => s + 1);
     } else {
       playSound('wrong');
+    }
+
+    // Tự động chấm điểm SRS: Đúng -> Good(4), Sai -> Again(0)
+    if (updateSRS) {
+      try {
+        await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: q.vocabulary_id, rating: isCorrect ? 4 : 0 });
+      } catch (e) { console.error("Lỗi gửi điểm SRS"); }
     }
     
     setTimeout(() => {
@@ -946,7 +1083,7 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP }) {
         <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
         <p className="text-xl text-slate-600 mb-8">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {questions.length}</p>
         <div className="flex gap-4">
-          <button onClick={onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
+          <button onClick={onComplete || onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
           <button onClick={startQuiz} className="flex-1 py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg">Làm lại</button>
         </div>
       </div>
@@ -956,10 +1093,13 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP }) {
   const q = questions[index];
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-4 text-center font-bold text-slate-500">Câu {index + 1} / {questions.length}</div>
+      <div className="mb-4 flex justify-between items-center">
+        <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
+        <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
+      </div>
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6">
         <h3 className="text-4xl font-bold mb-2">{q.word}</h3>
-        {q.ipa && <p className="text-slate-400 font-mono">{q.ipa}</p>}
+        {q.ipa && <p className="text-slate-400 font-mono text-xl">{q.ipa}</p>}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {q.options.map((opt, i) => {
@@ -970,8 +1110,9 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP }) {
             else cls = "opacity-50";
           }
           return (
-            <button key={i} onClick={() => handleAnswer(opt)} disabled={!!selected} className={`p-4 rounded-2xl text-lg font-medium transition-all ${cls}`}>
-              <span className="text-slate-400 text-xs font-bold mr-2">{i+1}</span> {opt}
+            <button key={i} onClick={() => handleAnswer(opt)} disabled={!!selected} className={`p-4 rounded-2xl text-lg font-medium transition-all text-left flex items-center ${cls}`}>
+              <span className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0">{i+1}</span> 
+              {opt}
             </button>
           );
         })}

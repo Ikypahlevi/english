@@ -41,6 +41,19 @@ CREATE TABLE IF NOT EXISTS vocabularies (
     CONSTRAINT fk_topic FOREIGN KEY (topic_id) REFERENCES topics(topic_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_topic_id ON vocabularies(topic_id);
-CREATE INDEX IF NOT EXISTS idx_user_id ON topics(user_id);
+CREATE TABLE IF NOT EXISTS vocab_progress (
+    progress_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    vocabulary_id INT NOT NULL,
+    repetition INT DEFAULT 0,
+    interval_days INT DEFAULT 0,
+    ease_factor FLOAT DEFAULT 2.5,
+    next_review_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (vocabulary_id) REFERENCES vocabularies(vocabulary_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_vocab (user_id, vocabulary_id)
+);
 
+CREATE INDEX IF NOT EXISTS idx_vocab_progress_review ON vocab_progress(user_id, next_review_date);

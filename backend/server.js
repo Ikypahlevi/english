@@ -233,6 +233,91 @@ app.delete("/api/topics", authenticateToken, async (req, res) => {
   }
 });
 
+// ========== SRS (SPACED REPETITION) API ==========
+
+app.get("/api/reviews/today", authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT v.*, t.topic_name, p.repetition, p.ease_factor, p.interval_days
+      FROM vocabularies v
+      JOIN topics t ON v.topic_id = t.topic_id
+      LEFT JOIN vocab_progress p ON v.vocabulary_id = p.vocabulary_id AND p.user_id = ?
+      WHERE t.user_id = ? 
+        AND (p.next_review_date IS NULL OR p.next_review_date <= CURDATE())
+      ORDER BY p.next_review_date ASC, v.vocabulary_id ASC
+      LIMIT 100
+    `, [req.user.user_id, req.user.user_id]);
+    
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/reviews/update", authenticateToken, async (req, res) => {
+  const { vocabulary_id, rating } = req.body;
+  // rating: 0 (Again/Sai), 2 (Hard/Khó), 4 (Good/Tốt), 5 (Easy/Dễ)
+  
+  if (rating === undefined || !vocabulary_id) {
+    return res.status(400).json({ success: false, message: "Thiếu dữ liệu đánh giá." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    // Chỉ cho phép update nếu từ vựng thuộc về user này
+    const [authCheck] = await connection.execute(`
+      SELECT v.vocabulary_id FROM vocabularies v
+      JOIN topics t ON v.topic_id = t.topic_id
+      WHERE v.vocabulary_id = ? AND t.user_id = ?
+    `, [vocabulary_id, req.user.user_id]);
+    
+    if (authCheck.length === 0) return res.status(403).json({ success: false, message: "Không có quyền." });
+
+    const [rows] = await connection.execute(
+      "SELECT * FROM vocab_progress WHERE user_id = ? AND vocabulary_id = ?",
+      [req.user.user_id, vocabulary_id]
+    );
+    
+    let rep = 0, interval = 0, ease = 2.5;
+    
+    if (rows.length > 0) {
+      rep = rows[0].repetition;
+      interval = rows[0].interval_days;
+      ease = rows[0].ease_factor;
+    }
+    
+    // SM-2 Algorithm logic
+    if (rating >= 3) {
+      if (rep === 0) interval = 1;
+      else if (rep === 1) interval = 6;
+      else interval = Math.round(interval * ease);
+      rep += 1;
+    } else {
+      rep = 0;
+      interval = 1; // Học lại vào ngày mai
+    }
+    
+    ease = ease + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02));
+    if (ease < 1.3) ease = 1.3;
+    
+    await connection.execute(`
+      INSERT INTO vocab_progress (user_id, vocabulary_id, repetition, interval_days, ease_factor, next_review_date)
+      VALUES (?, ?, ?, ?, ?, DATE_ADD(CURDATE(), INTERVAL ? DAY))
+      ON DUPLICATE KEY UPDATE 
+        repetition = VALUES(repetition),
+        interval_days = VALUES(interval_days),
+        ease_factor = VALUES(ease_factor),
+        next_review_date = VALUES(next_review_date)
+    `, [req.user.user_id, vocabulary_id, rep, interval, ease, interval]);
+    
+    res.json({ success: true, message: "Đã cập nhật tiến độ." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
 app.post("/api/check-answer", authenticateToken, async (req, res) => {
   const { word, correctMeaning, userAnswer } = req.body;
   if (!word || !correctMeaning || !userAnswer) return res.status(400).json({ success: false, message: "Thiếu dữ liệu" });
