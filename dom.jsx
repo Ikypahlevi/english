@@ -59,6 +59,19 @@ const playSound = (type) => {
   } catch (e) { console.log("Audio not supported"); }
 };
 
+// ── Text-to-Speech (Anh Mỹ) ─────────────────────────────────────────
+export const speakWord = (text) => {
+  if (!window.speechSynthesis) return;
+  
+  // Hủy các giọng đọc đang dang dở
+  window.speechSynthesis.cancel();
+  
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.9; // Đọc chậm một chút để dễ nghe hơn
+  window.speechSynthesis.speak(utterance);
+};
+
 // ── Dark Mode Hook ──────────────────────────────────────────────────
 function useDarkMode() {
   const [dark, setDark] = useState(() => {
@@ -750,10 +763,14 @@ function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selec
                              <Sparkles size={14} />
                            </div>
                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover/img:block z-50 w-40 h-40 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden origin-bottom-left animate-scale-in">
-                             <img src={\`https://image.pollinations.ai/prompt/illustration%20of%20\${encodeURIComponent(item.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=200&height=200&nologo=true\`} alt={item.word} className="w-full h-full object-cover" loading="lazy" />
+                             <img src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(item.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=200&height=200&nologo=true`} alt={item.word} className="w-full h-full object-cover" loading="lazy" />
                            </div>
                         </div>
-                        {item.word} {item.ipa && <span className="ml-2 text-xs font-normal text-brand-500 font-mono bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded">{item.ipa}</span>}
+                        {item.word} 
+                        <button onClick={(e) => { e.stopPropagation(); speakWord(item.word); }} className="ml-2 text-slate-400 hover:text-brand-500 transition-colors" title="Nghe phát âm">
+                          <Volume2 size={16} />
+                        </button>
+                        {item.ipa && <span className="ml-2 text-xs font-normal text-brand-500 font-mono bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded">{item.ipa}</span>}
                       </td>
                       <td className="py-3.5 px-5 text-slate-600 dark:text-slate-300">{item.meaning}</td>
                       <td className="py-3.5 px-5 text-right">
@@ -995,7 +1012,7 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
           <div className="flip-front bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 dark:opacity-20 pointer-events-none">
               <img 
-                src={\`https://image.pollinations.ai/prompt/illustration%20of%20\${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=800&height=600&nologo=true\`} 
+                src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=800&height=600&nologo=true`} 
                 alt="bg" 
                 className="w-full h-full object-cover blur-md"
               />
@@ -1003,13 +1020,18 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
             <div className="relative z-10 flex flex-col items-center w-full px-4">
               <div className="w-40 h-40 mb-6 rounded-2xl overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                  <img 
-                  src={\`https://image.pollinations.ai/prompt/illustration%20of%20\${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=400&height=400&nologo=true\`} 
+                  src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=400&height=400&nologo=true`} 
                   alt={currentWord.word} 
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
               </div>
-              <h2 className="text-5xl font-bold text-slate-900 dark:text-white mb-2">{currentWord.word}</h2>
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-5xl font-bold text-slate-900 dark:text-white">{currentWord.word}</h2>
+                <button onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }} className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors" title="Nghe phát âm">
+                  <Volume2 size={24} />
+                </button>
+              </div>
               {currentWord.ipa && <p className="text-brand-500 font-mono text-xl bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-lg backdrop-blur-sm inline-block shadow-sm">{currentWord.ipa}</p>}
             </div>
             <p className="absolute bottom-6 inset-x-0 text-xs text-slate-400 dark:text-slate-500 font-medium z-10">Nhấn Space để lật</p>
@@ -1144,7 +1166,12 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onCom
         <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
       </div>
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6">
-        <h3 className="text-4xl font-bold mb-2">{q.word}</h3>
+        <div className="flex justify-center items-center gap-3 mb-2">
+          <h3 className="text-4xl font-bold">{q.word}</h3>
+          <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-10 h-10 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 dark:hover:bg-slate-700 transition-colors" title="Nghe phát âm">
+            <Volume2 size={24} />
+          </button>
+        </div>
         {q.ipa && <p className="text-slate-400 font-mono text-xl">{q.ipa}</p>}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1241,17 +1268,22 @@ function ChatRoleplayView({ vocabList, onBack, addXP }) {
         <div className="flex flex-col items-end">
           <span className="font-bold text-slate-700 dark:text-slate-300 text-sm">Mục tiêu: Dùng từ vựng ({usedWords.size}/{vocabList.length})</span>
           <div className="w-32 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-1">
-            <div className="h-full bg-brand-500 rounded-full transition-all" style={{width: \`\${progress}%\`}}/>
+            <div className="h-full bg-brand-500 rounded-full transition-all" style={{width: `${progress}%`}}/>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-4 flex flex-col">
         {messages.map((msg, idx) => (
-          <div key={idx} className={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
-            <div className={\`max-w-[75%] p-4 rounded-2xl \${msg.role === 'user' ? 'bg-brand-500 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-sm'}\`}>
+          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-brand-500 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-sm'}`}>
               {msg.text}
             </div>
+            {msg.role === 'ai' && (
+              <button onClick={() => speakWord(msg.text)} className="ml-2 mt-auto p-2 text-slate-400 hover:text-brand-500 self-end">
+                <Volume2 size={16} />
+              </button>
+            )}
           </div>
         ))}
         {loading && (
@@ -1272,7 +1304,7 @@ function ChatRoleplayView({ vocabList, onBack, addXP }) {
           {vocabList.map((v, i) => {
             const isUsed = usedWords.has(v.word.toLowerCase());
             return (
-              <span key={i} className={\`text-xs px-2 py-1 rounded-md border font-medium \${isUsed ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}\`}>
+              <span key={i} className={`text-xs px-2 py-1 rounded-md border font-medium ${isUsed ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
                 {v.word}
               </span>
             );
