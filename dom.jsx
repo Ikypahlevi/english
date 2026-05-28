@@ -1107,27 +1107,37 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onCom
     
     if (isCorrect) {
       playSound('correct');
-      setScore(s => s + 1);
+      if (!q.hasFailed) setScore(s => s + 1);
     } else {
       playSound('wrong');
     }
 
     // Tự động chấm điểm SRS: Đúng -> Good(4), Sai -> Again(0)
-    if (updateSRS) {
+    if (updateSRS && !q.hasFailed) {
       try {
         await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: q.vocabulary_id, rating: isCorrect ? 4 : 0 });
       } catch (e) { console.error("Lỗi gửi điểm SRS"); }
     }
     
     setTimeout(() => {
-      if (index === questions.length - 1) {
+      let nextIndex = index + 1;
+      let newQuestions = [...questions];
+      
+      if (!isCorrect) {
+        // Đẩy câu hỏi sai xuống cuối để làm lại
+        newQuestions.push({ ...q, hasFailed: true });
+        setQuestions(newQuestions);
+      }
+
+      if (index === newQuestions.length - 1) {
         setGameState('result');
-        if (score + (isCorrect ? 1 : 0) === questions.length) {
+        const finalScore = score + (isCorrect && !q.hasFailed ? 1 : 0);
+        if (finalScore === vocabList.length) {
           confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
         }
-        addXP((score + (isCorrect ? 1 : 0)) * 5); // 5 XP per correct answer
+        addXP(finalScore * 5); // 5 XP per correct answer on first try
       } else {
-        setIndex(index + 1);
+        setIndex(nextIndex);
         setSelected(null);
       }
     }, 1200);
