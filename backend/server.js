@@ -376,6 +376,59 @@ app.post("/api/generate-image", authenticateToken, async (req, res) => {
   }
 });
 
+// ========== AI ROLEPLAY CHAT ==========
+app.post("/api/chat/roleplay", authenticateToken, async (req, res) => {
+  const { messages, vocabList, topicName } = req.body;
+  if (!messages || !vocabList) return res.status(400).json({ success: false, message: "Thiếu dữ liệu." });
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Chưa cấu hình GEMINI_API_KEY.");
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    // Format target words for system prompt
+    const targetWords = vocabList.map(v => `${v.word} (${v.meaning})`).join(", ");
+
+    const systemPrompt = `You are a native English speaker roleplaying with an English learner.
+Topic: ${topicName}
+Your goal is to have a natural conversation with the user to help them practice English.
+Target Vocabulary for the user to learn: ${targetWords}.
+
+RULES:
+1. Always respond in English.
+2. Keep your responses short, conversational, and natural (1-3 sentences).
+3. Naturally steer the conversation to encourage the user to use the Target Vocabulary.
+4. If the user makes a major grammar mistake, you can gently correct them in parentheses at the end of your message.
+5. If the user is struggling, give them a subtle hint about what they could say next.`;
+
+    // Convert client messages to Gemini format
+    const history = messages.map(msg => ({
+      role: msg.role === 'ai' ? 'model' : 'user',
+      parts: [{ text: msg.text }]
+    }));
+
+    // Start chat
+    const chat = model.startChat({
+      history: [
+        { role: "user", parts: [{ text: systemPrompt }] },
+        { role: "model", parts: [{ text: "Understood. I will act as a conversational partner to help the user practice these words." }] },
+        ...history.slice(0, -1)
+      ],
+    });
+
+    const lastMessage = history[history.length - 1].parts[0].text;
+    const result = await chat.sendMessage(lastMessage);
+    const responseText = result.response.text();
+
+    res.json({ success: true, text: responseText });
+  } catch (error) {
+    console.error("AI Error:", error);
+    res.status(500).json({ success: false, message: "Lỗi kết nối AI: " + error.message });
+  }
+});
+
 // ========== START SERVER ==========
 app.listen(PORT, () => {
   console.log(`\n🚀 EngMaster API đang chạy tại: http://localhost:${PORT}`);
