@@ -892,15 +892,18 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
   if (isReady && loadedVocab.length > 0) {
     if (mode === "flashcard") return <FlashcardView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
     if (mode === "quiz") return <QuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
+    if (mode === "chat") return <ChatRoleplayView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} />;
   }
 
-  const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : "from-brand-600 to-brand-500";
+  const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : mode === "chat" ? "from-emerald-500 to-teal-600" : "from-brand-600 to-brand-500";
   
   return (
     <div className="max-w-2xl mx-auto">
       <div className={`bg-gradient-to-r ${modeColor} rounded-3xl p-8 text-white text-center mb-6 shadow-xl`}>
-        <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4"><BrainCircuit size={32} /></div>
-        <h2 className="text-2xl font-bold mb-1">{mode === "flashcard" ? "Flashcards" : "Kiểm tra"}</h2>
+        <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
+          {mode === "chat" ? <MessageSquare size={32} /> : <BrainCircuit size={32} />}
+        </div>
+        <h2 className="text-2xl font-bold mb-1">{mode === "flashcard" ? "Flashcards" : mode === "chat" ? "Giao tiếp AI" : "Kiểm tra"}</h2>
         <p className="text-white/80 text-sm">Chọn bộ đề để bắt đầu</p>
       </div>
 
