@@ -41,6 +41,13 @@ function authenticateToken(req, res, next) {
   });
 }
 
+function verifyAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: "Yêu cầu quyền Quản trị viên (Admin)." });
+  }
+  next();
+}
+
 // ========== AUTH & STATS API ==========
 
 app.post("/api/auth/register", async (req, res) => {
@@ -57,13 +64,13 @@ app.post("/api/auth/register", async (req, res) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-      const [result] = await connection.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", [email, hashedPassword]);
+      const [result] = await connection.execute("INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'user')", [email, hashedPassword]);
       const userId = result.insertId;
       await connection.execute("INSERT INTO user_stats (user_id, xp, streak_days) VALUES (?, 0, 0)", [userId]);
       await connection.commit();
       
-      const token = jwt.sign({ user_id: userId, email }, JWT_SECRET, { expiresIn: '30d' });
-      res.json({ success: true, message: "Đăng ký thành công", token, user: { user_id: userId, email } });
+      const token = jwt.sign({ user_id: userId, email, role: 'user' }, JWT_SECRET, { expiresIn: '30d' });
+      res.json({ success: true, message: "Đăng ký thành công", token, user: { user_id: userId, email, role: 'user' } });
     } catch (err) {
       await connection.rollback();
       throw err;
@@ -85,8 +92,8 @@ app.post("/api/auth/login", async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) return res.status(400).json({ success: false, message: "Sai email hoặc mật khẩu." });
 
-    const token = jwt.sign({ user_id: user.user_id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, message: "Đăng nhập thành công", token, user: { user_id: user.user_id, email: user.email } });
+    const token = jwt.sign({ user_id: user.user_id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, message: "Đăng nhập thành công", token, user: { user_id: user.user_id, email: user.email, role: user.role } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -127,9 +134,11 @@ app.post("/api/stats/update", authenticateToken, async (req, res) => {
 
 // ========== PROTECTED DATA API ENDPOINTS ==========
 
-app.post("/api/topics/import", authenticateToken, async (req, res) => {
-  const sheetsData = req.body;
-  if (!Array.isArray(sheetsData) || sheetsData.length === 0) {
+// ========== TOPICS & VOCABULARIES ==========
+
+app.post("/api/upload-excel", authenticateToken, verifyAdmin, async (req, res) => {
+  const { excelData } = req.body;
+  if (!Array.isArray(excelData) || excelData.length === 0) {
     return res.status(400).json({ success: false, message: "Dữ liệu không hợp lệ." });
   }
 
@@ -138,7 +147,7 @@ app.post("/api/topics/import", authenticateToken, async (req, res) => {
     await connection.beginTransaction();
     let totalTopics = 0, totalVocabularies = 0;
 
-    for (const sheet of sheetsData) {
+    for (const sheet of excelData) {
       const { sheetName, fileName, vocabularies } = sheet;
       if (!vocabularies || vocabularies.length === 0) continue;
 
@@ -173,10 +182,9 @@ app.get("/api/topics", authenticateToken, async (req, res) => {
              COUNT(v.vocabulary_id) AS vocab_count
       FROM topics t
       LEFT JOIN vocabularies v ON t.topic_id = v.topic_id
-      WHERE t.user_id = ?
       GROUP BY t.topic_id
       ORDER BY t.created_at DESC
-    `, [req.user.user_id]);
+    `);
     res.json({ success: true, data: rows });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -185,10 +193,6 @@ app.get("/api/topics", authenticateToken, async (req, res) => {
 
 app.get("/api/topics/:topicId/vocabularies", authenticateToken, async (req, res) => {
   try {
-    // Xác thực topic thuộc về user
-    const [topicCheck] = await pool.execute("SELECT topic_id FROM topics WHERE topic_id = ? AND user_id = ?", [req.params.topicId, req.user.user_id]);
-    if (topicCheck.length === 0) return res.status(403).json({ success: false, message: "Không có quyền truy cập." });
-
     const [rows] = await pool.execute("SELECT * FROM vocabularies WHERE topic_id = ? ORDER BY vocabulary_id ASC", [req.params.topicId]);
     res.json({ success: true, data: rows });
   } catch (error) {
@@ -196,39 +200,22 @@ app.get("/api/topics/:topicId/vocabularies", authenticateToken, async (req, res)
   }
 });
 
-app.delete("/api/topics/:topicId", authenticateToken, async (req, res) => {
+app.delete("/api/topics/:topicId", authenticateToken, verifyAdmin, async (req, res) => {
   try {
-    const [result] = await pool.execute("DELETE FROM topics WHERE topic_id = ? AND user_id = ?", [req.params.topicId, req.user.user_id]);
-    if (result.affectedRows === 0) return res.status(403).json({ success: false, message: "Không tìm thấy hoặc không có quyền xóa." });
-    res.json({ success: true, message: "Đã xóa chủ điểm." });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.delete("/api/vocabularies/:vocabId", authenticateToken, async (req, res) => {
-  try {
-    // Kiểm tra quyền sở hữu gián tiếp qua topics
-    const [check] = await pool.execute(`
-      SELECT v.vocabulary_id FROM vocabularies v
-      JOIN topics t ON v.topic_id = t.topic_id
-      WHERE v.vocabulary_id = ? AND t.user_id = ?
-    `, [req.params.vocabId, req.user.user_id]);
+    const [result] = await pool.execute("DELETE FROM topics WHERE topic_id = ?", [req.params.topicId]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: "Không tìm thấy bộ từ vựng." });
     
-    if (check.length === 0) return res.status(403).json({ success: false, message: "Không có quyền truy cập." });
-
-    await pool.execute("DELETE FROM vocabularies WHERE vocabulary_id = ?", [req.params.vocabId]);
-    res.json({ success: true, message: "Đã xóa từ vựng." });
+    res.json({ success: true, message: "Đã xóa bộ từ vựng thành công." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-app.delete("/api/topics", authenticateToken, async (req, res) => {
+app.delete("/api/vocabularies/:vocabId", authenticateToken, verifyAdmin, async (req, res) => {
   try {
-    await pool.execute("DELETE v FROM vocabularies v JOIN topics t ON v.topic_id = t.topic_id WHERE t.user_id = ?", [req.user.user_id]);
-    await pool.execute("DELETE FROM topics WHERE user_id = ?", [req.user.user_id]);
-    res.json({ success: true, message: "Đã xóa toàn bộ dữ liệu của bạn." });
+    const [result] = await pool.execute("DELETE FROM vocabularies WHERE vocabulary_id = ?", [req.params.vocabId]);
+    if (result.affectedRows === 0) return res.status(403).json({ success: false, message: "Không tìm thấy hoặc không có quyền xóa." });
+    res.json({ success: true, message: "Đã xóa từ vựng." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -257,7 +244,6 @@ app.get("/api/reviews/today", authenticateToken, async (req, res) => {
 
 app.post("/api/reviews/update", authenticateToken, async (req, res) => {
   const { vocabulary_id, rating } = req.body;
-  // rating: 0 (Again/Sai), 2 (Hard/Khó), 4 (Good/Tốt), 5 (Easy/Dễ)
   
   if (rating === undefined || !vocabulary_id) {
     return res.status(400).json({ success: false, message: "Thiếu dữ liệu đánh giá." });
@@ -265,7 +251,6 @@ app.post("/api/reviews/update", authenticateToken, async (req, res) => {
 
   const connection = await pool.getConnection();
   try {
-    // Chỉ cho phép update nếu từ vựng thuộc về user này
     const [authCheck] = await connection.execute(`
       SELECT v.vocabulary_id FROM vocabularies v
       JOIN topics t ON v.topic_id = t.topic_id
@@ -287,7 +272,6 @@ app.post("/api/reviews/update", authenticateToken, async (req, res) => {
       ease = rows[0].ease_factor;
     }
     
-    // SM-2 Algorithm logic
     if (rating >= 3) {
       if (rep === 0) interval = 1;
       else if (rep === 1) interval = 6;
@@ -295,7 +279,7 @@ app.post("/api/reviews/update", authenticateToken, async (req, res) => {
       rep += 1;
     } else {
       rep = 0;
-      interval = 1; // Học lại vào ngày mai
+      interval = 1;
     }
     
     ease = ease + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02));
@@ -367,7 +351,6 @@ app.post("/api/generate-image", authenticateToken, async (req, res) => {
   const { word } = req.body;
   if (!word) return res.status(400).json({ success: false, message: "Thiếu từ vựng" });
   try {
-    // Sử dụng Pollinations AI (Miễn phí, không cần key)
     const prompt = encodeURIComponent(`An illustration representing the english word "${word}", simple, clear, educational style`);
     const imageUrl = `https://image.pollinations.ai/prompt/${prompt}?width=400&height=300&nologo=true`;
     res.json({ success: true, data: { imageUrl } });
@@ -388,7 +371,6 @@ app.post("/api/chat/roleplay", authenticateToken, async (req, res) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Format target words for system prompt
     const targetWords = vocabList.map(v => `${v.word} (${v.meaning})`).join(", ");
 
     const systemPrompt = `You are a native English speaker roleplaying with an English learner.
@@ -403,13 +385,11 @@ RULES:
 4. If the user makes a major grammar mistake, you can gently correct them in parentheses at the end of your message.
 5. If the user is struggling, give them a subtle hint about what they could say next.`;
 
-    // Convert client messages to Gemini format
     const history = messages.map(msg => ({
       role: msg.role === 'ai' ? 'model' : 'user',
       parts: [{ text: msg.text }]
     }));
 
-    // Start chat
     const chat = model.startChat({
       history: [
         { role: "user", parts: [{ text: systemPrompt }] },
@@ -426,6 +406,34 @@ RULES:
   } catch (error) {
     console.error("AI Error:", error);
     res.status(500).json({ success: false, message: "Lỗi kết nối AI: " + error.message });
+  }
+});
+
+// ========== ADMIN APIs ==========
+app.get("/api/admin/users", authenticateToken, verifyAdmin, async (req, res) => {
+  try {
+    const [users] = await pool.execute(`
+      SELECT u.user_id, u.email, u.role, u.created_at, s.xp, s.streak_days 
+      FROM users u 
+      LEFT JOIN user_stats s ON u.user_id = s.user_id 
+      ORDER BY u.created_at DESC
+    `);
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete("/api/admin/users/:userId", authenticateToken, verifyAdmin, async (req, res) => {
+  try {
+    if (req.user.user_id == req.params.userId) {
+      return res.status(400).json({ success: false, message: "Không thể tự xóa chính mình." });
+    }
+    const [result] = await pool.execute("DELETE FROM users WHERE user_id = ?", [req.params.userId]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: "Không tìm thấy người dùng." });
+    res.json({ success: true, message: "Đã xóa người dùng thành công." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

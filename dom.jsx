@@ -4,7 +4,7 @@ import {
   RotateCcw, CheckCircle2, XCircle, Sparkles, Loader2, Volume2,
   Lightbulb, Trash2, FolderOpen, ArrowLeft, Database, Sun, Moon,
   FileSpreadsheet, LayoutDashboard, BookMarked, BrainCircuit, Zap,
-  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare
+  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare, Users
 } from "lucide-react";
 import axios from "axios";
 import confetti from "canvas-confetti";
@@ -394,6 +394,9 @@ export default function App() {
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
     { id: "chat",      icon: MessageSquare,  label: "Giao tiếp AI" },
   ];
+  if (user?.role === 'admin') {
+    navItems.push({ id: "admin", icon: Users, label: "Quản trị" });
+  }
 
   if (!user) {
     return (
@@ -509,6 +512,7 @@ export default function App() {
               {activeTab === "list" && (
                 <div className="animate-slide-up">
                   <VocabListView
+                    user={user}
                     topics={topics}
                     selectedTopic={selectedTopic}
                     vocabList={vocabList}
@@ -536,6 +540,11 @@ export default function App() {
               {activeTab === "chat" && (
                 <div className="animate-slide-up">
                   <FlashcardQuizWrapper topics={topics} mode="chat" addXP={addXP} />
+                </div>
+              )}
+              {activeTab === "admin" && user?.role === 'admin' && (
+                <div className="animate-slide-up">
+                  <AdminDashboardView />
                 </div>
               )}
             </>
@@ -714,7 +723,7 @@ function SheetSelectModal({ pendingWorkbook, selectedSheets, isSaving, toggleShe
 // ══════════════════════════════════════════════════════════════════
 // VOCAB LIST VIEW
 // ══════════════════════════════════════════════════════════════════
-function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selectTopic, backToTopics, handleFileUpload, processFile, handleDeleteTopic, handleDeleteVocab, totalVocab }) {
+function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab, selectTopic, backToTopics, handleFileUpload, processFile, handleDeleteTopic, handleDeleteVocab, totalVocab }) {
   const [isDragging, setIsDragging] = useState(false);
   const dropRef = useRef(null);
 
@@ -774,9 +783,11 @@ function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selec
                       </td>
                       <td className="py-3.5 px-5 text-slate-600 dark:text-slate-300">{item.meaning}</td>
                       <td className="py-3.5 px-5 text-right">
-                        <button onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
-                          <Trash2 size={15} />
-                        </button>
+                        {user?.role === 'admin' && (
+                          <button onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -803,17 +814,19 @@ function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selec
         <p className="text-slate-500 mt-1">{topics.length} bộ đề • {totalVocab} từ vựng</p>
       </div>
 
-      <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        className={`relative mb-8 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
-          isDragging ? "border-brand-500 bg-brand-50 scale-[1.01]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-300"
-        }`}>
-        <label className="absolute inset-0 cursor-pointer" htmlFor="excel-upload" />
-        <input id="excel-upload" type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileUpload} />
-        <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-all ${isDragging ? "bg-brand-500 text-white shadow-lg" : "bg-brand-50 text-brand-500"}`}>
-          <Upload size={28} />
+      {user?.role === 'admin' && (
+        <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+          className={`relative mb-8 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
+            isDragging ? "border-brand-500 bg-brand-50 scale-[1.01]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-300"
+          }`}>
+          <label className="absolute inset-0 cursor-pointer" htmlFor="excel-upload" />
+          <input id="excel-upload" type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileUpload} />
+          <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-all ${isDragging ? "bg-brand-500 text-white shadow-lg" : "bg-brand-50 text-brand-500"}`}>
+            <Upload size={28} />
+          </div>
+          <p className="font-semibold text-slate-700 dark:text-slate-300">Thả file Excel vào đây để thêm từ vựng</p>
         </div>
-        <p className="font-semibold text-slate-700 dark:text-slate-300">Thả file Excel vào đây để thêm từ vựng</p>
-      </div>
+      )}
 
       {topics.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 py-16 text-center rounded-3xl border border-slate-200 dark:border-slate-800">
@@ -823,7 +836,7 @@ function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selec
       ) : (
         <div className="space-y-6">
           {Object.entries(groupedTopics).map(([groupName, groupTopics]) => (
-            <FileGroup key={groupName} groupName={groupName} groupTopics={groupTopics} selectTopic={selectTopic} handleDeleteTopic={handleDeleteTopic} />
+            <FileGroup key={groupName} user={user} groupName={groupName} groupTopics={groupTopics} selectTopic={selectTopic} handleDeleteTopic={handleDeleteTopic} />
           ))}
         </div>
       )}
@@ -831,7 +844,7 @@ function VocabListView({ topics, selectedTopic, vocabList, isLoadingVocab, selec
   );
 }
 
-function FileGroup({ groupName, groupTopics, selectTopic, handleDeleteTopic }) {
+function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopic }) {
   const [collapsed, setCollapsed] = useState(false);
   const totalWords = groupTopics.reduce((s, t) => s + Number(t.vocab_count || 0), 0);
 
@@ -857,9 +870,11 @@ function FileGroup({ groupName, groupTopics, selectTopic, handleDeleteTopic }) {
                   <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{topic.topic_name}</p>
                 </div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); handleDeleteTopic(topic.topic_id, topic.topic_name); }} className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white dark:bg-slate-700 rounded-lg shadow-sm">
-                <Trash2 size={14} />
-              </button>
+              {user?.role === 'admin' && (
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteTopic(topic.topic_id, topic.topic_name); }} className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -1339,6 +1354,95 @@ function ChatRoleplayView({ vocabList, onBack, addXP }) {
             className="p-3 bg-brand-500 text-white rounded-xl hover:bg-brand-600 disabled:opacity-50 transition-all">
             <MessageSquare size={20} />
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD VIEW
+// ══════════════════════════════════════════════════════════════════
+function AdminDashboardView() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/admin/users`);
+      if (res.data.success) {
+        setUsers(res.data.data);
+      }
+    } catch (e) {
+      showToast("Lỗi tải danh sách người dùng", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (id, email) => {
+    if (!confirm(`Bạn có chắc muốn xóa người dùng ${email}? Mọi dữ liệu của họ sẽ bị mất.`)) return;
+    try {
+      const res = await axios.delete(`${API_BASE}/admin/users/${id}`);
+      if (res.data.success) {
+        showToast("Đã xóa người dùng", "success");
+        setUsers(users.filter(u => u.user_id !== id));
+      }
+    } catch (e) {
+      showToast(e.response?.data?.message || "Lỗi xóa người dùng", "error");
+    }
+  };
+
+  if (loading) {
+    return <div className="py-20 text-center"><Loader2 size={36} className="animate-spin text-brand-500 mx-auto" /></div>;
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Quản Trị Hệ Thống</h2>
+        <p className="text-slate-500 mt-1">Tổng cộng: {users.length} người dùng</p>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                <th className="py-4 px-5 text-xs font-bold text-slate-400 uppercase">Email</th>
+                <th className="py-4 px-5 text-xs font-bold text-slate-400 uppercase">Quyền</th>
+                <th className="py-4 px-5 text-xs font-bold text-slate-400 uppercase">XP</th>
+                <th className="py-4 px-5 text-xs font-bold text-slate-400 uppercase">Ngày Chuỗi</th>
+                <th className="py-4 px-5 text-xs font-bold text-slate-400 uppercase text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.user_id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="py-3.5 px-5 font-medium text-slate-900 dark:text-white">{u.email}</td>
+                  <td className="py-3.5 px-5">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                      {u.role.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-5 text-amber-500 font-bold">{u.xp || 0}</td>
+                  <td className="py-3.5 px-5 text-orange-500 font-bold">{u.streak_days || 0}</td>
+                  <td className="py-3.5 px-5 text-right">
+                    {u.role !== 'admin' && (
+                      <button onClick={() => handleDeleteUser(u.user_id, u.email)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
