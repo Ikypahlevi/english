@@ -5,10 +5,12 @@ const pool = require("./db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const multer = require("multer");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "engmaster_super_secret_key_12345";
+const upload = multer({ storage: multer.memoryStorage() });
 
 // ========== MIDDLEWARE ==========
 app.use(cors({
@@ -251,14 +253,6 @@ app.post("/api/reviews/update", authenticateToken, async (req, res) => {
 
   const connection = await pool.getConnection();
   try {
-    const [authCheck] = await connection.execute(`
-      SELECT v.vocabulary_id FROM vocabularies v
-      JOIN topics t ON v.topic_id = t.topic_id
-      WHERE v.vocabulary_id = ? AND t.user_id = ?
-    `, [vocabulary_id, req.user.user_id]);
-    
-    if (authCheck.length === 0) return res.status(403).json({ success: false, message: "Không có quyền." });
-
     const [rows] = await connection.execute(
       "SELECT * FROM vocab_progress WHERE user_id = ? AND vocabulary_id = ?",
       [req.user.user_id, vocabulary_id]
@@ -406,6 +400,41 @@ RULES:
   } catch (error) {
     console.error("AI Error:", error);
     res.status(500).json({ success: false, message: "Lỗi kết nối AI: " + error.message });
+  }
+});
+
+// ========== AI AUDIO TRANSCRIPTION ==========
+app.post("/api/transcribe", authenticateToken, upload.single("audio"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: "Không tìm thấy file âm thanh." });
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Chưa cấu hình GEMINI_API_KEY.");
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `Please transcribe the spoken English in this audio file. Then, provide a complete Vietnamese translation below the transcription. Format your response exactly like this:
+**Transcript:**
+[English text here]
+
+**Dịch:**
+[Vietnamese text here]`;
+
+    const audioPart = {
+      inlineData: {
+        data: req.file.buffer.toString("base64"),
+        mimeType: req.file.mimetype
+      }
+    };
+
+    const result = await model.generateContent([prompt, audioPart]);
+    const responseText = result.response.text();
+    
+    res.json({ success: true, text: responseText });
+  } catch (error) {
+    console.error("Transcription Error:", error);
+    res.status(500).json({ success: false, message: "Lỗi nhận diện âm thanh: " + error.message });
   }
 });
 

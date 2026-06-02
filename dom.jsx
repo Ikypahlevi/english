@@ -4,7 +4,7 @@ import {
   RotateCcw, CheckCircle2, XCircle, Sparkles, Loader2, Volume2,
   Lightbulb, Trash2, FolderOpen, ArrowLeft, Database, Sun, Moon,
   FileSpreadsheet, LayoutDashboard, BookMarked, BrainCircuit, Zap,
-  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare, Users
+  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare, Users, Headphones
 } from "lucide-react";
 import axios from "axios";
 import confetti from "canvas-confetti";
@@ -393,6 +393,7 @@ export default function App() {
     { id: "flashcard", icon: Layers,         label: "Thẻ bài" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
     { id: "chat",      icon: MessageSquare,  label: "Giao tiếp AI" },
+    { id: "transcribe",icon: Headphones,     label: "Luyện nghe" },
   ];
   if (user?.role === 'admin') {
     navItems.push({ id: "admin", icon: Users, label: "Quản trị" });
@@ -540,6 +541,11 @@ export default function App() {
               {activeTab === "chat" && (
                 <div className="animate-slide-up">
                   <FlashcardQuizWrapper topics={topics} mode="chat" addXP={addXP} />
+                </div>
+              )}
+              {activeTab === "transcribe" && (
+                <div className="animate-slide-up">
+                  <AudioTranscriptionView />
                 </div>
               )}
               {activeTab === "admin" && user?.role === 'admin' && (
@@ -1444,6 +1450,100 @@ function AdminDashboardView() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AUDIO TRANSCRIPTION VIEW
+// ══════════════════════════════════════════════════════════════════
+function AudioTranscriptionView() {
+  const [file, setFile] = useState(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [result, setResult] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (selected) {
+      if (selected.size > 10 * 1024 * 1024) {
+        showToast("File quá lớn (tối đa 10MB)", "error");
+        return;
+      }
+      setFile(selected);
+      setResult("");
+    }
+  };
+
+  const handleTranscribe = async () => {
+    if (!file) return;
+    setIsTranscribing(true);
+    setResult("");
+
+    const formData = new FormData();
+    formData.append("audio", file);
+
+    try {
+      const res = await axios.post(`${API_BASE}/transcribe`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        setResult(res.data.text);
+        showToast("Dịch thành công!", "success");
+      }
+    } catch (e) {
+      showToast(e.response?.data?.message || "Lỗi dịch âm thanh", "error");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto pb-20">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Luyện Nghe & Dịch Âm Thanh</h2>
+        <p className="text-slate-500 mt-1">Tải lên file âm thanh tiếng Anh để AI phân tích và dịch cho bạn.</p>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+        <div 
+          onClick={() => fileInputRef.current?.click()}
+          className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center cursor-pointer hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition-all mb-6"
+        >
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            accept="audio/*" 
+            className="hidden" 
+          />
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center mb-4">
+            <Headphones size={32} />
+          </div>
+          <p className="font-semibold text-slate-700 dark:text-slate-300">
+            {file ? file.name : "Nhấp vào đây để chọn file âm thanh"}
+          </p>
+          <p className="text-xs text-slate-400 mt-2">Hỗ trợ: mp3, wav, m4a, ogg (Tối đa 10MB)</p>
+        </div>
+
+        <button 
+          onClick={handleTranscribe} 
+          disabled={!file || isTranscribing}
+          className="w-full py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:from-brand-700 hover:to-brand-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 shadow-lg shadow-brand-500/20"
+        >
+          {isTranscribing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+          {isTranscribing ? "AI đang phân tích âm thanh..." : "Phân tích & Dịch"}
+        </button>
+
+        {result && (
+          <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 animate-slide-up">
+            <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Kết quả:</h3>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-medium leading-relaxed">
+              {result}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
