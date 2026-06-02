@@ -412,7 +412,7 @@ app.post("/api/transcribe", authenticateToken, upload.single("audio"), async (re
     if (!apiKey) throw new Error("Chưa cấu hình GEMINI_API_KEY.");
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `Please transcribe the spoken English in this audio file. Then, provide a complete Vietnamese translation below the transcription. Format your response exactly like this:
 **Transcript:**
