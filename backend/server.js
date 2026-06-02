@@ -412,8 +412,7 @@ app.post("/api/transcribe", authenticateToken, upload.single("audio"), async (re
     if (!apiKey) throw new Error("Chưa cấu hình GEMINI_API_KEY.");
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
+    
     const prompt = `Please transcribe the spoken English in this audio file. Then, provide a complete Vietnamese translation below the transcription. Format your response exactly like this:
 **Transcript:**
 [English text here]
@@ -428,13 +427,36 @@ app.post("/api/transcribe", authenticateToken, upload.single("audio"), async (re
       }
     };
 
-    const result = await model.generateContent([prompt, audioPart]);
-    const responseText = result.response.text();
+    let result;
+    let retries = 3;
+    let delay = 2000;
     
+    for (let i = 0; i < retries; i++) {
+      try {
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        result = await model.generateContent([prompt, audioPart]);
+        break; // If success, exit loop
+      } catch (error) {
+        if (i === retries - 1) throw error; // Throw error on last attempt
+        if (error.message && error.message.includes("503")) {
+          console.warn(`[Gemini API 503] Server overloaded. Retrying ${i + 1}/${retries} in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw error; // Not a 503 error, throw immediately
+        }
+      }
+    }
+
+    const responseText = result.response.text();
     res.json({ success: true, text: responseText });
   } catch (error) {
     console.error("Transcription Error:", error);
-    res.status(500).json({ success: false, message: "Lỗi nhận diện âm thanh: " + error.message });
+    let errorMsg = error.message;
+    if (errorMsg.includes("503")) {
+      errorMsg = "Hệ thống AI đang quá tải (Google Server 503). Vui lòng thử lại sau ít phút.";
+    }
+    res.status(500).json({ success: false, message: "Lỗi nhận diện âm thanh: " + errorMsg });
   }
 });
 
