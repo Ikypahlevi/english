@@ -1290,12 +1290,23 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: q.vocabulary_id, rating: isCorrect ? 4 : 0 });
       } catch (e) { console.error("Lỗi gửi điểm SRS"); }
     }
-    
-    // Auto next for multiple choice if correct
-    if (q.qType === 'multiple-choice' && isCorrect) {
-       setTimeout(() => nextQuestion(true), 1200);
-    }
   };
+
+  // Tự động chuyển câu sau 3 giây khi có kết quả
+  const autoNextRef = useRef(null);
+  useEffect(() => {
+    autoNextRef.current = () => nextQuestion();
+  });
+
+  useEffect(() => {
+    let timer;
+    if (feedback && gameState === 'playing') {
+      timer = setTimeout(() => {
+        if (autoNextRef.current) autoNextRef.current();
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [feedback, gameState]);
 
   const handleMCQAnswer = async (opt) => {
     if (selected || feedback) return;
