@@ -1214,11 +1214,27 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
   const [feedback, setFeedback] = useState(null); // { isCorrect, reason }
   const inputRef = useRef(null);
 
+  const allModes = [
+    { id: 'multiple-choice', label: 'Trắc nghiệm' },
+    { id: 'typing-en-vi', label: 'Gõ tiếng Việt' },
+    { id: 'typing-vi-en', label: 'Gõ tiếng Anh' },
+    { id: 'listen-en', label: 'Nghe TA - Gõ TV' },
+    { id: 'listen-vi', label: 'Nghe TV - Gõ TA' }
+  ];
+  const [selectedModes, setSelectedModes] = useState(['multiple-choice', 'typing-en-vi', 'typing-vi-en', 'listen-en', 'listen-vi']);
+
+  const toggleMode = (id) => {
+    setSelectedModes(prev => {
+      if (prev.includes(id) && prev.length > 1) return prev.filter(m => m !== id);
+      if (!prev.includes(id)) return [...prev, id];
+      return prev;
+    });
+  };
+
   const startQuiz = () => {
     const mixed = [...vocabList].sort(() => 0.5 - Math.random()).map(w => {
-      // Chọn ngẫu nhiên 1 trong 5 chế độ
-      const modes = ['multiple-choice', 'typing-en-vi', 'typing-vi-en', 'listen-en', 'listen-vi'];
-      const qType = modes[Math.floor(Math.random() * modes.length)];
+      // Chọn ngẫu nhiên 1 trong các chế độ được chọn
+      const qType = selectedModes[Math.floor(Math.random() * selectedModes.length)];
       
       let options = [];
       if (qType === 'multiple-choice') {
@@ -1381,10 +1397,27 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'start') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto">
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto">
         <BrainCircuit size={48} className="mx-auto text-brand-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-6">Kiểm tra Tổng hợp</h2>
-        <p className="text-slate-500 mb-6">Bao gồm Trắc nghiệm, Gõ từ vựng và Luyện nghe.</p>
+        <h2 className="text-2xl font-bold mb-2">Kiểm tra Tổng hợp</h2>
+        <p className="text-slate-500 mb-6 text-sm">Chọn các hình thức bạn muốn kiểm tra:</p>
+        
+        <div className="grid grid-cols-2 gap-2 mb-6 text-left">
+          {allModes.map(m => (
+            <button key={m.id} onClick={() => toggleMode(m.id)}
+              className={`p-3 rounded-xl border-2 flex items-center gap-2 text-sm font-medium transition-all ${
+                selectedModes.includes(m.id) 
+                  ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300" 
+                  : "border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}>
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center border flex-shrink-0 ${selectedModes.includes(m.id) ? 'bg-brand-500 border-brand-500 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
+                {selectedModes.includes(m.id) && <CheckCircle2 size={12} />}
+              </div>
+              <span className="truncate">{m.label}</span>
+            </button>
+          ))}
+        </div>
+
         <button onClick={startQuiz} className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg mb-4">Bắt đầu</button>
         <button onClick={onBack} className="text-slate-500 font-medium hover:text-slate-800">Quay lại</button>
       </div>
