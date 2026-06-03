@@ -6,5 +6,6 @@ const upload = require('../middlewares/upload.middleware');
 
 router.post('/chat', authenticateToken, aiController.chat);
 router.post('/transcribe', authenticateToken, upload.single("audio"), aiController.transcribe);
+router.post('/check-answer', authenticateToken, aiController.checkAnswer);
 
 module.exports = router;

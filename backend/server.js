@@ -30,11 +30,8 @@ app.use((err, req, res, next) => {
 });
 
 // ========== ROUTES ==========
-app.use("/api/auth", authRoutes); // Auth and Stats mapped to authRoutes for now. In a real app we might split stats.
-app.use("/api/stats", authRoutes); 
-app.use("/api/topics", topicRoutes);
-app.use("/api/upload-excel", topicRoutes); // mapped in topic routes
-app.use("/api/vocabularies", topicRoutes); // mapped in topic routes
+app.use("/api", authRoutes); // Auth and Stats
+app.use("/api", topicRoutes); // Topics, Vocabularies, Upload Excel
 app.use("/api/reviews", quizRoutes);
 app.use("/api", aiRoutes); // chat & transcribe
 app.use("/api/admin", adminRoutes);

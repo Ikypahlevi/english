@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 exports.uploadExcel = async (req, res) => {
-  const { excelData } = req.body;
+  const excelData = Array.isArray(req.body) ? req.body : req.body.excelData;
   if (!Array.isArray(excelData) || excelData.length === 0) {
     return res.status(400).json({ success: false, message: "Dữ liệu không hợp lệ." });
   }

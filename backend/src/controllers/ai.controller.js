@@ -92,3 +92,46 @@ Example Format:
     res.status(500).json({ success: false, message: "Lỗi nhận diện âm thanh: " + errorMsg });
   }
 };
+
+exports.checkAnswer = async (req, res) => {
+  const { word, correctMeaning, userAnswer } = req.body;
+  if (!word || !correctMeaning || !userAnswer) return res.status(400).json({ success: false, message: "Thiếu dữ liệu" });
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || ""; 
+    const prompt = `Bạn là giám khảo máy móc chấm điểm từ vựng tiếng Anh.
+Từ gốc: "${word}"
+Nghĩa chuẩn: "${correctMeaning}"
+Câu trả lời của người dùng: "${userAnswer}"
+
+Luật chấm điểm:
+1. Chỉ chấm điểm dựa trên ngữ nghĩa (chấp nhận từ đồng nghĩa, bao hàm ý nghĩa, bỏ qua hoa/thường, dấu câu).
+2. TUYỆT ĐỐI KHÔNG giải thích thêm.
+3. Bắt buộc CHỈ trả về duy nhất chuỗi JSON chuẩn: {"isCorrect": boolean, "reason": "string ngắn giải thích lý do"}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      })
+    });
+    
+    if (!response.ok) throw new Error(`API AI Error - Status: ${response.status}`);
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("AI trả về kết quả rỗng");
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Không giải mã được JSON");
+    const result = JSON.parse(jsonMatch[0]);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const normalizedUser = String(userAnswer).trim().toLowerCase();
+    const normalizedCorrect = String(correctMeaning).trim().toLowerCase();
+    const fallbackCorrect = normalizedCorrect.includes(normalizedUser) && normalizedUser.length >= 3;
+    res.json({ success: true, data: { isCorrect: fallbackCorrect, reason: fallbackCorrect ? "Đúng (AI Fallback)" : "Sai (AI Fallback)" } });
+  }
+};
