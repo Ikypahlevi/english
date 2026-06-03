@@ -1308,7 +1308,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     if (feedback && gameState === 'playing') {
       timer = setTimeout(() => {
         if (autoNextRef.current) autoNextRef.current();
-      }, 3000);
+      }, 1500);
     }
     return () => clearTimeout(timer);
   }, [feedback, gameState]);
