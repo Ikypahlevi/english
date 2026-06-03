@@ -1221,20 +1221,11 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     { id: 'listen-en', label: 'Nghe TA - Gõ TV' },
     { id: 'listen-vi', label: 'Nghe TV - Gõ TA' }
   ];
-  const [selectedModes, setSelectedModes] = useState(['multiple-choice', 'typing-en-vi', 'typing-vi-en', 'listen-en', 'listen-vi']);
-
-  const toggleMode = (id) => {
-    setSelectedModes(prev => {
-      if (prev.includes(id) && prev.length > 1) return prev.filter(m => m !== id);
-      if (!prev.includes(id)) return [...prev, id];
-      return prev;
-    });
-  };
+  const [selectedMode, setSelectedMode] = useState('multiple-choice');
 
   const startQuiz = () => {
     const mixed = [...vocabList].sort(() => 0.5 - Math.random()).map(w => {
-      // Chọn ngẫu nhiên 1 trong các chế độ được chọn
-      const qType = selectedModes[Math.floor(Math.random() * selectedModes.length)];
+      const qType = selectedMode;
       
       let options = [];
       if (qType === 'multiple-choice') {
@@ -1404,14 +1395,14 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         
         <div className="grid grid-cols-2 gap-2 mb-6 text-left">
           {allModes.map(m => (
-            <button key={m.id} onClick={() => toggleMode(m.id)}
+            <button key={m.id} onClick={() => setSelectedMode(m.id)}
               className={`p-3 rounded-xl border-2 flex items-center gap-2 text-sm font-medium transition-all ${
-                selectedModes.includes(m.id) 
+                selectedMode === m.id 
                   ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300" 
                   : "border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
               }`}>
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center border flex-shrink-0 ${selectedModes.includes(m.id) ? 'bg-brand-500 border-brand-500 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
-                {selectedModes.includes(m.id) && <CheckCircle2 size={12} />}
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center border flex-shrink-0 ${selectedMode === m.id ? 'bg-brand-500 border-brand-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                {selectedMode === m.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
               </div>
               <span className="truncate">{m.label}</span>
             </button>
