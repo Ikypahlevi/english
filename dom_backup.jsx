@@ -8,8 +8,6 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import confetti from "canvas-confetti";
-import localforage from "localforage";
-import LeaderboardView from "./src/views/LeaderboardView.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
@@ -396,7 +394,6 @@ export default function App() {
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
     { id: "chat",      icon: MessageSquare,  label: "Giao tiếp AI" },
     { id: "transcribe",icon: Headphones,     label: "Luyện nghe" },
-    { id: "leaderboard",icon: Trophy,        label: "Bảng xếp hạng" },
   ];
   if (user?.role === 'admin') {
     navItems.push({ id: "admin", icon: Users, label: "Quản trị" });
@@ -549,11 +546,6 @@ export default function App() {
               {activeTab === "transcribe" && (
                 <div className="animate-slide-up">
                   <AudioTranscriptionView />
-                </div>
-              )}
-              {activeTab === "leaderboard" && (
-                <div className="animate-slide-up">
-                  <LeaderboardView />
                 </div>
               )}
               {activeTab === "admin" && user?.role === 'admin' && (
@@ -764,17 +756,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
           </div>
 
           {isLoadingVocab ? (
-            <div className="p-6 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 animate-pulse">
-                  <div className="w-8 h-8 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
-                    <div className="h-3 bg-slate-100 dark:bg-slate-800/50 rounded w-1/2"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="py-20 text-center"><Loader2 size={36} className="animate-spin text-brand-500 mx-auto" /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -1396,22 +1378,17 @@ function ChatRoleplayView({ vocabList, onBack, addXP }) {
 function AdminDashboardView() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
 
   useEffect(() => {
-    fetchUsers(page);
-  }, [page]);
+    fetchUsers();
+  }, []);
 
-  const fetchUsers = async (pageNumber) => {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/admin/users?page=${pageNumber}&limit=10`);
+      const res = await axios.get(`${API_BASE}/admin/users`);
       if (res.data.success) {
         setUsers(res.data.data);
-        setTotalPages(res.data.pagination?.totalPages || 1);
-        setTotalUsers(res.data.pagination?.total || res.data.data.length);
       }
     } catch (e) {
       showToast("Lỗi tải danh sách người dùng", "error");
@@ -1434,16 +1411,7 @@ function AdminDashboardView() {
   };
 
   if (loading) {
-    return (
-      <div className="p-8 space-y-6 animate-pulse max-w-2xl mx-auto mt-10">
-        <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-1/3 mx-auto"></div>
-        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl w-full"></div>
-        <div className="flex justify-center gap-4">
-           <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-32"></div>
-           <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-32"></div>
-        </div>
-      </div>
-    );
+    return <div className="py-20 text-center"><Loader2 size={36} className="animate-spin text-brand-500 mx-auto" /></div>;
   }
 
   return (
