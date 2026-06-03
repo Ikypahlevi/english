@@ -1539,9 +1539,10 @@ function AudioTranscriptionView() {
         {result && (
           <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 animate-slide-up">
             <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Kết quả:</h3>
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-medium leading-relaxed">
-              {result}
-            </div>
+            <div 
+              className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-slate-700 dark:text-slate-300 font-medium leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }}
+            />
           </div>
         )}
       </div>

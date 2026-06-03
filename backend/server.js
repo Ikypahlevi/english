@@ -413,12 +413,17 @@ app.post("/api/transcribe", authenticateToken, upload.single("audio"), async (re
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    const prompt = `Please transcribe the spoken English in this audio file. Then, provide a complete Vietnamese translation below the transcription. Format your response exactly like this:
-**Transcript:**
-[English text here]
+    const prompt = `Please transcribe the spoken English in this audio file. Format your response sentence-by-sentence (or dialogue-by-dialogue). 
+For each transcribed English sentence:
+1. Write the English sentence. If this is a test/quiz audio, try to identify the correct answer or key phrases and format them with an underline (using markdown HTML like <u>underlined text</u> or **bold**).
+2. Immediately below it, provide the Vietnamese translation for that specific sentence.
 
-**Dịch:**
-[Vietnamese text here]`;
+Example Format:
+**English:** She is <u>holding a pen</u>.
+**Dịch:** Cô ấy đang cầm một cây bút.
+
+**English:** [Next sentence...]
+**Dịch:** [Next translation...]`;
 
     const audioPart = {
       inlineData: {
