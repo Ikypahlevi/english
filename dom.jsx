@@ -1202,6 +1202,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState('start'); // start, playing, result
+  const [mistakes, setMistakes] = useState([]);
   
   // For multiple-choice
   const [selected, setSelected] = useState(null);
@@ -1235,7 +1236,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       return { ...w, qType, options };
     });
     setQuestions(mixed); setIndex(0); setScore(0); setGameState('playing'); 
-    setSelected(null); setFeedback(null); setInput("");
+    setSelected(null); setFeedback(null); setInput(""); setMistakes([]);
   };
 
   useEffect(() => { if (setIsQuizOngoing) setIsQuizOngoing(gameState === 'playing'); }, [gameState, setIsQuizOngoing]);
@@ -1283,6 +1284,10 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       if (!q.hasFailed) setScore(s => s + 1);
     } else {
       playSound('wrong');
+      setMistakes(prev => {
+        if (prev.find(m => m.vocabulary_id === q.vocabulary_id)) return prev;
+        return [...prev, { ...q, userAnswer: resultFeedback.userAnswer || "Không rõ", reason: resultFeedback.reason }];
+      });
     }
 
     if (updateSRS && !q.hasFailed) {
@@ -1313,7 +1318,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     setSelected(opt);
     const q = questions[index];
     const isCorrect = opt === q.meaning;
-    const resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.meaning}` };
+    const resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.meaning}`, userAnswer: opt };
     await processResult(isCorrect, resultFeedback, q);
   };
 
@@ -1330,7 +1335,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       const normalizedInput = input.trim().toLowerCase();
       const normalizedTarget = q.word.toLowerCase();
       isCorrect = normalizedInput === normalizedTarget;
-      resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.word}` };
+      resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.word}`, userAnswer: input.trim() };
     } else {
       // Dịch sang tiếng Việt -> Dùng AI chấm
       try {
@@ -1342,6 +1347,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         if (res.data.success) {
           isCorrect = res.data.data.isCorrect;
           resultFeedback = res.data.data;
+          resultFeedback.userAnswer = input.trim();
         } else {
           throw new Error("API returned error");
         }
@@ -1350,7 +1356,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         const normalizedInput = input.trim().toLowerCase();
         const normalizedTarget = q.meaning.toLowerCase();
         isCorrect = normalizedTarget.includes(normalizedInput) && normalizedInput.length >= 3;
-        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Nghĩa chuẩn: ${q.meaning}` };
+        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Nghĩa chuẩn: ${q.meaning}`, userAnswer: input.trim() };
       }
     }
     await processResult(isCorrect, resultFeedback, q);
@@ -1428,10 +1434,34 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'result') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto animate-scale-in">
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
         <div className="text-6xl mb-4">🏆</div>
         <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
-        <p className="text-xl text-slate-600 mb-8">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {questions.length}</p>
+        <p className="text-xl text-slate-600 mb-6">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {questions.length}</p>
+
+        {mistakes.length > 0 && (
+          <div className="mb-8 text-left bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+            <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+              <XCircle className="text-red-500" size={20} /> Danh sách từ cần ôn lại ({mistakes.length})
+            </h3>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+              {mistakes.map((m, i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <span className="font-bold text-lg text-slate-900 dark:text-white">{m.word}</span>
+                    <span className="text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full">
+                      Đúng: {m.qType.includes('vi-en') || m.qType === 'listen-vi' ? m.word : m.meaning}
+                    </span>
+                  </div>
+                  <div className="text-sm text-slate-500 mb-1">
+                    Bạn chọn/nhập: <span className="line-through text-red-500 font-medium">{m.userAnswer}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-4">
           <button onClick={onComplete || onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
           <button onClick={startQuiz} className="flex-1 py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg">Làm lại</button>
