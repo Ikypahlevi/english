@@ -62,14 +62,14 @@ const playSound = (type) => {
 };
 
 // ── Text-to-Speech (Anh Mỹ) ─────────────────────────────────────────
-export const speakWord = (text) => {
+export const speakWord = (text, lang = 'en-US') => {
   if (!window.speechSynthesis) return;
   
   // Hủy các giọng đọc đang dang dở
   window.speechSynthesis.cancel();
   
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US';
+  utterance.lang = lang;
   utterance.rate = 0.9; // Đọc chậm một chút để dễ nghe hơn
   window.speechSynthesis.speak(utterance);
 };
@@ -426,7 +426,6 @@ export default function App() {
     { id: "list",      icon: BookOpen,       label: "Kho từ" },
     { id: "flashcard", icon: Layers,         label: "Thẻ bài" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
-    { id: "typing",    icon: Keyboard,       label: "Gõ từ vựng" },
     { id: "chat",      icon: MessageSquare,  label: "Giao tiếp AI" },
     { id: "transcribe",icon: Headphones,     label: "Luyện nghe" },
     { id: "leaderboard",icon: Trophy,        label: "Bảng xếp hạng" },
@@ -580,11 +579,6 @@ export default function App() {
               {activeTab === "quiz" && (
                 <div className="animate-slide-up">
                   <FlashcardQuizWrapper topics={topics} mode="quiz" setIsQuizOngoing={setIsQuizOngoing} addXP={addXP} />
-                </div>
-              )}
-              {activeTab === "typing" && (
-                <div className="animate-slide-up">
-                  <FlashcardQuizWrapper topics={topics} mode="typing" setIsQuizOngoing={setIsQuizOngoing} addXP={addXP} />
                 </div>
               )}
               {activeTab === "chat" && (
@@ -998,20 +992,19 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
 
   if (isReady && loadedVocab.length > 0) {
     if (mode === "flashcard") return <FlashcardView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
-    if (mode === "quiz") return <QuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
-    if (mode === "typing") return <TypingQuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
+    if (mode === "quiz") return <IntegratedQuizView vocabList={loadedVocab} setIsQuizOngoing={setIsQuizOngoing} onBack={() => setIsReady(false)} addXP={addXP} updateSRS={true} />;
     if (mode === "chat") return <ChatRoleplayView vocabList={loadedVocab} onBack={() => setIsReady(false)} addXP={addXP} />;
   }
 
-  const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : mode === "chat" ? "from-emerald-500 to-teal-600" : mode === "typing" ? "from-rose-500 to-red-600" : "from-brand-600 to-brand-500";
+  const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : mode === "chat" ? "from-emerald-500 to-teal-600" : "from-brand-600 to-brand-500";
   
   return (
     <div className="max-w-2xl mx-auto">
       <div className={`bg-gradient-to-r ${modeColor} rounded-3xl p-8 text-white text-center mb-6 shadow-xl`}>
         <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-          {mode === "chat" ? <MessageSquare size={32} /> : mode === "typing" ? <Keyboard size={32} /> : <BrainCircuit size={32} />}
+          {mode === "chat" ? <MessageSquare size={32} /> : <BrainCircuit size={32} />}
         </div>
-        <h2 className="text-2xl font-bold mb-1">{mode === "flashcard" ? "Flashcards" : mode === "chat" ? "Giao tiếp AI" : mode === "typing" ? "Gõ từ vựng" : "Kiểm tra"}</h2>
+        <h2 className="text-2xl font-bold mb-1">{mode === "flashcard" ? "Flashcards" : mode === "chat" ? "Giao tiếp AI" : "Kiểm tra tổng hợp"}</h2>
         <p className="text-white/80 text-sm">Chọn bộ đề để bắt đầu</p>
       </div>
 
@@ -1202,44 +1195,82 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// QUIZ VIEW (SRS Enabled)
+// INTEGRATED QUIZ VIEW (SRS Enabled)
 // ══════════════════════════════════════════════════════════════════
-function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onComplete }) {
+function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onComplete }) {
   const [questions, setQuestions] = useState([]);
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [gameState, setGameState] = useState('start');
+  const [gameState, setGameState] = useState('start'); // start, playing, result
+  
+  // For multiple-choice
   const [selected, setSelected] = useState(null);
+  
+  // For typing / listening
+  const [input, setInput] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
+  
+  // Shared feedback state
+  const [feedback, setFeedback] = useState(null); // { isCorrect, reason }
+  const inputRef = useRef(null);
 
   const startQuiz = () => {
     const mixed = [...vocabList].sort(() => 0.5 - Math.random()).map(w => {
-      const wrong = vocabList.filter(x => x.vocabulary_id !== w.vocabulary_id).sort(() => 0.5 - Math.random()).slice(0, 3).map(x => x.meaning);
-      return { ...w, options: [...wrong, w.meaning].sort(() => 0.5 - Math.random()) };
+      // Chọn ngẫu nhiên 1 trong 5 chế độ
+      const modes = ['multiple-choice', 'typing-en-vi', 'typing-vi-en', 'listen-en', 'listen-vi'];
+      const qType = modes[Math.floor(Math.random() * modes.length)];
+      
+      let options = [];
+      if (qType === 'multiple-choice') {
+        const wrong = vocabList.filter(x => x.vocabulary_id !== w.vocabulary_id).sort(() => 0.5 - Math.random()).slice(0, 3).map(x => x.meaning);
+        options = [...wrong, w.meaning].sort(() => 0.5 - Math.random());
+      }
+      return { ...w, qType, options };
     });
-    setQuestions(mixed); setIndex(0); setScore(0); setGameState('playing'); setSelected(null);
+    setQuestions(mixed); setIndex(0); setScore(0); setGameState('playing'); 
+    setSelected(null); setFeedback(null); setInput("");
   };
 
   useEffect(() => { if (setIsQuizOngoing) setIsQuizOngoing(gameState === 'playing'); }, [gameState, setIsQuizOngoing]);
 
-  // Keyboard Shortcuts (1, 2, 3, 4)
+  useEffect(() => {
+    if (gameState === 'playing' && !feedback && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [gameState, index, feedback]);
+
+  // Auto play audio for listening modes
+  useEffect(() => {
+    if (gameState === 'playing' && !feedback && questions[index]) {
+      const q = questions[index];
+      if (q.qType === 'listen-en') {
+        speakWord(q.word, 'en-US');
+      } else if (q.qType === 'listen-vi') {
+        speakWord(q.meaning, 'vi-VN');
+      }
+    }
+  }, [gameState, index, questions, feedback]);
+
+  // Keyboard Shortcuts (1, 2, 3, 4) for multiple choice
   useEffect(() => {
     const handleKey = (e) => {
-      if (gameState !== 'playing' || selected) return;
-      const keyMap = { '1': 0, '2': 1, '3': 2, '4': 3 };
-      if (keyMap[e.key] !== undefined && questions[index]?.options[keyMap[e.key]]) {
-        handleAnswer(questions[index].options[keyMap[e.key]]);
+      if (gameState !== 'playing' || feedback || selected) return;
+      const q = questions[index];
+      if (q?.qType === 'multiple-choice') {
+        const keyMap = { '1': 0, '2': 1, '3': 2, '4': 3 };
+        if (keyMap[e.key] !== undefined && q.options[keyMap[e.key]]) {
+          handleMCQAnswer(q.options[keyMap[e.key]]);
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [gameState, selected, index, questions]);
+  }, [gameState, feedback, selected, index, questions]);
 
-  const handleAnswer = async (opt) => {
-    if (selected) return;
-    setSelected(opt);
-    const q = questions[index];
-    const isCorrect = opt === q.meaning;
-    
+  const processResult = async (isCorrect, resultFeedback, q) => {
+    setFeedback(resultFeedback);
+    setIsChecking(false);
+
     if (isCorrect) {
       playSound('correct');
       if (!q.hasFailed) setScore(s => s + 1);
@@ -1247,43 +1278,114 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onCom
       playSound('wrong');
     }
 
-    // Tự động chấm điểm SRS: Đúng -> Good(4), Sai -> Again(0)
     if (updateSRS && !q.hasFailed) {
       try {
         await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: q.vocabulary_id, rating: isCorrect ? 4 : 0 });
       } catch (e) { console.error("Lỗi gửi điểm SRS"); }
     }
     
-    setTimeout(() => {
-      let nextIndex = index + 1;
-      let newQuestions = [...questions];
-      
-      if (!isCorrect) {
-        // Đẩy câu hỏi sai xuống cuối để làm lại
-        newQuestions.push({ ...q, hasFailed: true });
-        setQuestions(newQuestions);
-      }
+    // Auto next for multiple choice if correct
+    if (q.qType === 'multiple-choice' && isCorrect) {
+       setTimeout(() => nextQuestion(true), 1200);
+    }
+  };
 
-      if (index === newQuestions.length - 1) {
-        setGameState('result');
-        const finalScore = score + (isCorrect && !q.hasFailed ? 1 : 0);
-        if (finalScore === vocabList.length) {
-          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+  const handleMCQAnswer = async (opt) => {
+    if (selected || feedback) return;
+    setSelected(opt);
+    const q = questions[index];
+    const isCorrect = opt === q.meaning;
+    const resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.meaning}` };
+    await processResult(isCorrect, resultFeedback, q);
+  };
+
+  const handleTypingAnswer = async () => {
+    if (!input.trim() || isChecking || feedback) return;
+    setIsChecking(true);
+    
+    const q = questions[index];
+    let isCorrect = false;
+    let resultFeedback = null;
+
+    if (q.qType === 'typing-vi-en' || q.qType === 'listen-vi') {
+      // Dịch sang tiếng Anh -> So khớp chuỗi
+      const normalizedInput = input.trim().toLowerCase();
+      const normalizedTarget = q.word.toLowerCase();
+      isCorrect = normalizedInput === normalizedTarget;
+      resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.word}` };
+    } else {
+      // Dịch sang tiếng Việt -> Dùng AI chấm
+      try {
+        const res = await axios.post(`${API_BASE}/check-answer`, {
+          word: q.word,
+          correctMeaning: q.meaning,
+          userAnswer: input.trim()
+        });
+        if (res.data.success) {
+          isCorrect = res.data.data.isCorrect;
+          resultFeedback = res.data.data;
+        } else {
+          throw new Error("API returned error");
         }
-        addXP(finalScore * 5); // 5 XP per correct answer on first try
-      } else {
-        setIndex(nextIndex);
-        setSelected(null);
+      } catch (e) {
+        // Fallback
+        const normalizedInput = input.trim().toLowerCase();
+        const normalizedTarget = q.meaning.toLowerCase();
+        isCorrect = normalizedTarget.includes(normalizedInput) && normalizedInput.length >= 3;
+        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Nghĩa chuẩn: ${q.meaning}` };
       }
-    }, 1200);
+    }
+    await processResult(isCorrect, resultFeedback, q);
+  };
+
+  const nextQuestion = (forceCorrect = false) => {
+    const q = questions[index];
+    const isCorrect = forceCorrect || (feedback && feedback.isCorrect);
+    
+    let nextIndex = index + 1;
+    let newQuestions = [...questions];
+    
+    if (!isCorrect) {
+      // Đẩy câu hỏi sai xuống cuối để làm lại
+      newQuestions.push({ ...q, hasFailed: true });
+      setQuestions(newQuestions);
+    }
+
+    if (index === newQuestions.length - 1) {
+      setGameState('result');
+      const finalScore = score + (isCorrect && !q.hasFailed ? 1 : 0);
+      if (finalScore === vocabList.length) {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      }
+      addXP(finalScore * 10); // 10 XP per correct answer
+    } else {
+      setIndex(nextIndex);
+      setFeedback(null);
+      setSelected(null);
+      setInput("");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (feedback) {
+        nextQuestion();
+      } else {
+        const q = questions[index];
+        if (q?.qType !== 'multiple-choice') {
+           handleTypingAnswer();
+        }
+      }
+    }
   };
 
   if (gameState === 'start') {
     return (
       <div className="text-center bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto">
         <BrainCircuit size={48} className="mx-auto text-brand-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-6">Bạn đã sẵn sàng?</h2>
-        <button onClick={startQuiz} className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg mb-4">Bắt đầu Quiz</button>
+        <h2 className="text-2xl font-bold mb-6">Kiểm tra Tổng hợp</h2>
+        <p className="text-slate-500 mb-6">Bao gồm Trắc nghiệm, Gõ từ vựng và Luyện nghe.</p>
+        <button onClick={startQuiz} className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg mb-4">Bắt đầu</button>
         <button onClick={onBack} className="text-slate-500 font-medium hover:text-slate-800">Quay lại</button>
       </div>
     );
@@ -1304,187 +1406,27 @@ function QuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onCom
   }
 
   const q = questions[index];
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-4 flex justify-between items-center">
-        <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
-        <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
-      </div>
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6">
-        <div className="flex justify-center items-center gap-3 mb-2">
-          <h3 className="text-4xl font-bold">{q.word}</h3>
-          <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-10 h-10 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 dark:hover:bg-slate-700 transition-colors" title="Nghe phát âm">
-            <Volume2 size={24} />
-          </button>
-        </div>
-        {q.ipa && <p className="text-slate-400 font-mono text-xl">{q.ipa}</p>}
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {q.options.map((opt, i) => {
-          let cls = "bg-white dark:bg-slate-900 border-2 border-slate-200 hover:border-brand-400";
-          if (selected) {
-            if (opt === q.meaning) cls = "bg-emerald-50 border-emerald-500 text-emerald-700";
-            else if (opt === selected) cls = "bg-red-50 border-red-500 text-red-700";
-            else cls = "opacity-50";
-          }
-          return (
-            <button key={i} onClick={() => handleAnswer(opt)} disabled={!!selected} className={`p-4 rounded-2xl text-lg font-medium transition-all text-left flex items-center ${cls}`}>
-              <span className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0">{i+1}</span> 
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// TYPING QUIZ VIEW (SRS Enabled)
-// ══════════════════════════════════════════════════════════════════
-function TypingQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS, onComplete }) {
-  const [questions, setQuestions] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [gameState, setGameState] = useState('start');
-  const [input, setInput] = useState("");
-  const [isChecking, setIsChecking] = useState(false);
-  const [feedback, setFeedback] = useState(null); // { isCorrect: boolean, reason: string }
-  const inputRef = useRef(null);
-
-  const startQuiz = () => {
-    // Trộn từ vựng
-    const mixed = [...vocabList].sort(() => 0.5 - Math.random()).map(w => {
-      return { ...w, mode: Math.random() > 0.5 ? 'en-vi' : 'vi-en' };
-    });
-    setQuestions(mixed); setIndex(0); setScore(0); setGameState('playing'); setInput(""); setFeedback(null);
-  };
-
-  useEffect(() => { if (setIsQuizOngoing) setIsQuizOngoing(gameState === 'playing'); }, [gameState, setIsQuizOngoing]);
-
-  useEffect(() => {
-    if (gameState === 'playing' && !feedback && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [gameState, index, feedback]);
-
-  const handleAnswer = async () => {
-    if (!input.trim() || isChecking || feedback) return;
-    setIsChecking(true);
-    
-    const q = questions[index];
-    let isCorrect = false;
-    let resultFeedback = null;
-
-    if (q.mode === 'vi-en') {
-      // Dịch từ Việt sang Anh -> Kiểm tra chính xác chuỗi
-      const normalizedInput = input.trim().toLowerCase();
-      const normalizedTarget = q.word.toLowerCase();
-      isCorrect = normalizedInput === normalizedTarget;
-      resultFeedback = { isCorrect, reason: isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${q.word}` };
-    } else {
-      // Dịch từ Anh sang Việt -> Gọi AI check
-      try {
-        const res = await axios.post(`${API_BASE}/check-answer`, {
-          word: q.word,
-          correctMeaning: q.meaning,
-          userAnswer: input.trim()
-        });
-        if (res.data.success) {
-          isCorrect = res.data.data.isCorrect;
-          resultFeedback = res.data.data;
-        } else {
-          throw new Error("API returned error");
-        }
-      } catch (e) {
-        // Fallback kiểm tra chuỗi nếu AI lỗi
-        const normalizedInput = input.trim().toLowerCase();
-        const normalizedTarget = q.meaning.toLowerCase();
-        isCorrect = normalizedTarget.includes(normalizedInput) && normalizedInput.length >= 3;
-        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Nghĩa chuẩn: ${q.meaning}` };
-      }
-    }
-
-    setFeedback(resultFeedback);
-    setIsChecking(false);
-
-    if (isCorrect) {
-      playSound('correct');
-      if (!q.hasFailed) setScore(s => s + 1);
-    } else {
-      playSound('wrong');
-    }
-
-    // Tự động chấm điểm SRS: Đúng -> Good(4), Sai -> Again(0)
-    if (updateSRS && !q.hasFailed) {
-      try {
-        await axios.post(`${API_BASE}/reviews/update`, { vocabulary_id: q.vocabulary_id, rating: isCorrect ? 4 : 0 });
-      } catch (e) { console.error("Lỗi gửi điểm SRS"); }
-    }
-  };
-
-  const nextQuestion = () => {
-    const q = questions[index];
-    const isCorrect = feedback.isCorrect;
-    
-    let nextIndex = index + 1;
-    let newQuestions = [...questions];
-    
-    if (!isCorrect) {
-      // Đẩy câu hỏi sai xuống cuối để làm lại
-      newQuestions.push({ ...q, hasFailed: true });
-      setQuestions(newQuestions);
-    }
-
-    if (index === newQuestions.length - 1) {
-      setGameState('result');
-      const finalScore = score + (isCorrect && !q.hasFailed ? 1 : 0);
-      if (finalScore === vocabList.length) {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      }
-      addXP(finalScore * 10); // 10 XP per correct answer in typing mode
-    } else {
-      setIndex(nextIndex);
-      setFeedback(null);
-      setInput("");
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (feedback) nextQuestion();
-      else handleAnswer();
-    }
-  };
-
-  if (gameState === 'start') {
-    return (
-      <div className="text-center bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto">
-        <Keyboard size={48} className="mx-auto text-brand-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-6">Bạn đã sẵn sàng gõ phím?</h2>
-        <p className="text-slate-500 mb-6">Hệ thống sẽ kiểm tra bằng trí tuệ nhân tạo để chấp nhận từ đồng nghĩa.</p>
-        <button onClick={startQuiz} className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg mb-4">Bắt đầu</button>
-        <button onClick={onBack} className="text-slate-500 font-medium hover:text-slate-800">Quay lại</button>
-      </div>
-    );
+  
+  let headerText = "";
+  let displayWord = "";
+  let isListenMode = false;
+  
+  if (q.qType === 'multiple-choice') {
+    headerText = "Chọn nghĩa đúng";
+    displayWord = q.word;
+  } else if (q.qType === 'typing-en-vi') {
+    headerText = "Dịch sang Tiếng Việt";
+    displayWord = q.word;
+  } else if (q.qType === 'typing-vi-en') {
+    headerText = "Dịch sang Tiếng Anh";
+    displayWord = q.meaning;
+  } else if (q.qType === 'listen-en') {
+    headerText = "Nghe Tiếng Anh & Gõ nghĩa Tiếng Việt";
+    isListenMode = true;
+  } else if (q.qType === 'listen-vi') {
+    headerText = "Nghe Tiếng Việt & Gõ từ Tiếng Anh";
+    isListenMode = true;
   }
-
-  if (gameState === 'result') {
-    return (
-      <div className="text-center bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto animate-scale-in">
-        <div className="text-6xl mb-4">🏆</div>
-        <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
-        <p className="text-xl text-slate-600 mb-8">Bạn gõ đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {questions.length}</p>
-        <div className="flex gap-4">
-          <button onClick={onComplete || onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
-          <button onClick={startQuiz} className="flex-1 py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg">Làm lại</button>
-        </div>
-      </div>
-    );
-  }
-
-  const q = questions[index];
-  const questionWord = q.mode === 'vi-en' ? q.meaning : q.word;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -1493,37 +1435,65 @@ function TypingQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS,
         <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6 relative">
         <p className="text-sm font-bold text-brand-500 uppercase tracking-widest mb-4">
-          {q.mode === 'vi-en' ? "Dịch sang Tiếng Anh" : "Dịch sang Tiếng Việt"}
+          {headerText}
         </p>
-        <div className="flex justify-center items-center gap-3 mb-2">
-          <h3 className="text-4xl font-bold text-slate-900 dark:text-white">{questionWord}</h3>
-          {q.mode === 'en-vi' && (
-            <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-10 h-10 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 transition-colors" title="Nghe phát âm">
-              <Volume2 size={24} />
+        
+        {isListenMode ? (
+          <div className="flex justify-center items-center gap-3 mb-2">
+            <button onClick={() => speakWord(q.qType === 'listen-en' ? q.word : q.meaning, q.qType === 'listen-en' ? 'en-US' : 'vi-VN')} className="w-20 h-20 rounded-full bg-brand-100 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-200 transition-colors shadow-lg animate-pulse">
+              <Headphones size={40} />
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex justify-center items-center gap-3 mb-2">
+            <h3 className="text-4xl font-bold text-slate-900 dark:text-white">{displayWord}</h3>
+            {(q.qType === 'multiple-choice' || q.qType === 'typing-en-vi') && (
+              <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-10 h-10 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 transition-colors" title="Nghe phát âm">
+                <Volume2 size={24} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="relative">
-        <input 
-          ref={inputRef}
-          type="text" 
-          value={input} 
-          onChange={(e) => setInput(e.target.value)} 
-          onKeyDown={handleKeyDown}
-          disabled={!!feedback || isChecking}
-          placeholder="Nhập câu trả lời của bạn..." 
-          className={`w-full py-5 px-6 rounded-2xl text-xl font-medium border-2 focus:outline-none transition-all ${
-            feedback 
-              ? feedback.isCorrect ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-red-50 border-red-500 text-red-700"
-              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:border-brand-500"
-          }`}
-        />
-        {isChecking && <Loader2 className="absolute right-6 top-5 animate-spin text-brand-500" size={24} />}
-      </div>
+      {q.qType === 'multiple-choice' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {q.options.map((opt, i) => {
+            let cls = "bg-white dark:bg-slate-900 border-2 border-slate-200 hover:border-brand-400";
+            if (selected) {
+              if (opt === q.meaning) cls = "bg-emerald-50 border-emerald-500 text-emerald-700";
+              else if (opt === selected) cls = "bg-red-50 border-red-500 text-red-700";
+              else cls = "opacity-50";
+            }
+            return (
+              <button key={i} onClick={() => handleMCQAnswer(opt)} disabled={!!selected} className={`p-4 rounded-2xl text-lg font-medium transition-all text-left flex items-center ${cls}`}>
+                <span className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0">{i+1}</span> 
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="relative">
+          <input 
+            ref={inputRef}
+            type="text" 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyDown={handleKeyDown}
+            disabled={!!feedback || isChecking}
+            placeholder="Nhập câu trả lời của bạn..." 
+            className={`w-full py-5 px-6 rounded-2xl text-xl font-medium border-2 focus:outline-none transition-all ${
+              feedback 
+                ? feedback.isCorrect ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-red-50 border-red-500 text-red-700"
+                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:border-brand-500"
+            }`}
+          />
+          {isChecking && <Loader2 className="absolute right-6 top-5 animate-spin text-brand-500" size={24} />}
+        </div>
+      )}
 
       {feedback && (
         <div className={`mt-4 p-4 rounded-xl font-medium flex items-start gap-3 animate-slide-up ${feedback.isCorrect ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
@@ -1532,9 +1502,11 @@ function TypingQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, updateSRS,
             <p className="font-bold text-lg">{feedback.isCorrect ? "Chính xác!" : "Chưa đúng"}</p>
             <p className="opacity-90">{feedback.reason}</p>
           </div>
-          <button onClick={nextQuestion} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
-            Tiếp tục (Enter)
-          </button>
+          {(!feedback.isCorrect || q.qType !== 'multiple-choice') && (
+            <button onClick={() => nextQuestion()} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
+              Tiếp tục (Enter)
+            </button>
+          )}
         </div>
       )}
     </div>
