@@ -1560,18 +1560,16 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         </div>
       )}
 
-      {feedback && (
-        <div className={`mt-4 p-4 rounded-xl font-medium flex items-start gap-3 animate-slide-up ${feedback.isCorrect ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
-          {feedback.isCorrect ? <CheckCircle2 className="mt-0.5 shrink-0" /> : <XCircle className="mt-0.5 shrink-0" />}
+      {feedback && !feedback.isCorrect && (
+        <div className={`mt-4 p-4 rounded-xl font-medium flex items-start gap-3 animate-slide-up bg-red-100 text-red-800`}>
+          <XCircle className="mt-0.5 shrink-0" />
           <div className="flex-1">
-            <p className="font-bold text-lg">{feedback.isCorrect ? "Chính xác!" : "Chưa đúng"}</p>
+            <p className="font-bold text-lg">Chưa đúng</p>
             <p className="opacity-90">{feedback.reason}</p>
           </div>
-          {(!feedback.isCorrect || q.qType !== 'multiple-choice') && (
-            <button onClick={() => nextQuestion()} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
-              Tiếp tục (Enter)
-            </button>
-          )}
+          <button onClick={() => nextQuestion()} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
+            Tiếp tục (Enter)
+          </button>
         </div>
       )}
     </div>
