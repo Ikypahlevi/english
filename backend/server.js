@@ -153,6 +153,16 @@ app.post("/api/upload-excel", authenticateToken, verifyAdmin, async (req, res) =
       const { sheetName, fileName, vocabularies } = sheet;
       if (!vocabularies || vocabularies.length === 0) continue;
 
+      // Xóa các bảng sheet trùng lặp (nếu tồn tại) trước khi chèn mới
+      const [existing] = await connection.execute(
+        "SELECT topic_id FROM topics WHERE topic_name = ? AND session_name = ?",
+        [sheetName, fileName || sheetName]
+      );
+      if (existing.length > 0) {
+        const idsToDelete = existing.map(e => e.topic_id);
+        await connection.execute("DELETE FROM topics WHERE topic_id IN (?)", [idsToDelete]);
+      }
+
       const [topicResult] = await connection.execute(
         "INSERT INTO topics (user_id, topic_name, session_name) VALUES (?, ?, ?)",
         [req.user.user_id, sheetName, fileName || sheetName]

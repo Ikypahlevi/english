@@ -813,6 +813,12 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
     return acc;
   }, {});
 
+  const sortedSessions = Object.entries(groupedTopics).sort((a, b) => {
+    const numA = parseInt(a[0].match(/\d+/)?.[0] || 0, 10);
+    const numB = parseInt(b[0].match(/\d+/)?.[0] || 0, 10);
+    return numA - numB;
+  });
+
   return (
     <div>
       <div className="mb-6">
@@ -841,7 +847,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedTopics).map(([groupName, groupTopics]) => (
+          {sortedSessions.map(([groupName, groupTopics]) => (
             <FileGroup key={groupName} user={user} groupName={groupName} groupTopics={groupTopics} selectTopic={selectTopic} handleDeleteTopic={handleDeleteTopic} />
           ))}
         </div>
