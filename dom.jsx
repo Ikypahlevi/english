@@ -4,7 +4,7 @@ import {
   RotateCcw, CheckCircle2, XCircle, Sparkles, Loader2, Volume2,
   Lightbulb, Trash2, FolderOpen, ArrowLeft, Database, Sun, Moon,
   FileSpreadsheet, LayoutDashboard, BookMarked, BrainCircuit, Zap,
-  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare, Users, Headphones
+  ChevronDown, ChevronUp, FileText, LogOut, User, Flame, CalendarClock, MessageSquare, Users, Headphones, Trophy
 } from "lucide-react";
 import axios from "axios";
 import confetti from "canvas-confetti";
