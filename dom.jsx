@@ -1611,9 +1611,15 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       {feedback && !feedback.isCorrect && (
         <div className={`mt-4 p-4 rounded-xl font-medium flex items-start gap-3 animate-slide-up bg-red-100 text-red-800`}>
           <XCircle className="mt-0.5 shrink-0" />
-          <div className="flex-1">
+          <div className="flex-1 text-left">
             <p className="font-bold text-lg">Chưa đúng</p>
             <p className="opacity-90">{feedback.reason}</p>
+            {q.qType !== 'multiple-choice' && (
+              <div className="bg-red-50/50 p-3 rounded-xl border border-red-200/50 mt-3">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-70 block mb-1">Đáp án đúng:</span>
+                <span className="text-xl font-bold text-red-900">{(q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word : q.meaning}</span>
+              </div>
+            )}
           </div>
           <button onClick={() => nextQuestion()} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
             Tiếp tục (Enter)
