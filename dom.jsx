@@ -200,6 +200,35 @@ function AuthScreen({ onLoginSuccess }) {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-red-50 text-red-600 rounded-xl m-4 border border-red-200 shadow-sm">
+          <h2 className="text-xl font-bold mb-2">Đã xảy ra lỗi (Crash)</h2>
+          <pre className="text-sm whitespace-pre-wrap font-mono bg-white p-4 rounded border border-red-100 overflow-auto max-h-96">
+            {this.state.error && this.state.error.toString()}
+            {"\n\n"}
+            {this.state.error && this.state.error.stack}
+          </pre>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700">Tải lại trang</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════
 // APP ROOT
 // ══════════════════════════════════════════════════════════════════
@@ -419,7 +448,10 @@ export default function App() {
       }
       await fetchInitialData();
       showToast(`Đã xóa file "${groupName}"`, "success");
-    } catch { showToast("Lỗi khi xóa file.", "error"); }
+    } catch (err) { 
+      console.error("Lỗi xóa group:", err);
+      showToast("Lỗi khi xóa file.", "error"); 
+    }
   }, [selectedTopic, fetchInitialData]);
 
   const handleDeleteVocab = useCallback(async (vocabId, word) => {
@@ -567,21 +599,23 @@ export default function App() {
               )}
               {activeTab === "list" && (
                 <div className="animate-slide-up">
-                  <VocabListView
-                    user={user}
-                    topics={topics}
-                    selectedTopic={selectedTopic}
-                    vocabList={vocabList}
-                    isLoadingVocab={isLoadingVocab}
-                    selectTopic={selectTopic}
-                    backToTopics={backToTopics}
-                    handleFileUpload={handleFileUpload}
-                    processFile={processFile}
-                    handleDeleteTopic={handleDeleteTopic}
-                    handleDeleteVocab={handleDeleteVocab}
-                    handleDeleteGroup={handleDeleteGroup}
-                    totalVocab={totalVocab}
-                  />
+                  <ErrorBoundary>
+                    <VocabListView
+                      user={user}
+                      topics={topics}
+                      selectedTopic={selectedTopic}
+                      vocabList={vocabList}
+                      isLoadingVocab={isLoadingVocab}
+                      selectTopic={selectTopic}
+                      backToTopics={backToTopics}
+                      handleFileUpload={handleFileUpload}
+                      processFile={processFile}
+                      handleDeleteTopic={handleDeleteTopic}
+                      handleDeleteVocab={handleDeleteVocab}
+                      handleDeleteGroup={handleDeleteGroup}
+                      totalVocab={totalVocab}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
               {activeTab === "flashcard" && (
