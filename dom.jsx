@@ -1485,7 +1485,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
         <div className="text-6xl mb-4">🏆</div>
         <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
-        <p className="text-xl text-slate-600 mb-6">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {questions.length}</p>
+        <p className="text-xl text-slate-600 mb-6">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {vocabList.length}</p>
 
         {mistakes.length > 0 && (
           <div className="mb-8 text-left bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
