@@ -923,11 +923,9 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
                       </td>
                       <td className="py-3.5 px-5 text-slate-600 dark:text-slate-300">{item.meaning}</td>
                       <td className="py-3.5 px-5 text-right">
-                        {user?.role === 'admin' && (
-                          <button onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={15} />
-                          </button>
-                        )}
+                        <button onClick={() => handleDeleteVocab(item.vocabulary_id, item.word)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 size={15} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -949,19 +947,17 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
         <p className="text-slate-500 mt-1">{topics.length} bộ đề • {totalVocab} từ vựng</p>
       </div>
 
-      {user?.role === 'admin' && (
-        <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-          className={`relative mb-8 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
-            isDragging ? "border-brand-500 bg-brand-50 scale-[1.01]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-300"
-          }`}>
+      <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+        className={`relative mb-8 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
+          isDragging ? "border-brand-500 bg-brand-50 scale-[1.01]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-300"
+        }`}>
           <label className="absolute inset-0 cursor-pointer" htmlFor="excel-upload" />
           <input id="excel-upload" type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileUpload} />
           <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-all ${isDragging ? "bg-brand-500 text-white shadow-lg" : "bg-brand-50 text-brand-500"}`}>
             <Upload size={28} />
           </div>
           <p className="font-semibold text-slate-700 dark:text-slate-300">Thả file Excel vào đây để thêm từ vựng</p>
-        </div>
-      )}
+      </div>
 
       {topics.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 py-16 text-center rounded-3xl border border-slate-200 dark:border-slate-800">
@@ -994,11 +990,9 @@ function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopi
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {user?.role === 'admin' && (
-            <button onClick={(e) => { e.stopPropagation(); handleDeleteGroup(groupName, groupTopics); }} className="p-2 text-slate-300 hover:text-red-500 transition-colors" title="Xóa toàn bộ file">
-              <Trash2 size={16} />
-            </button>
-          )}
+          <button onClick={(e) => { e.stopPropagation(); handleDeleteGroup(groupName, groupTopics); }} className="p-2 text-slate-300 hover:text-red-500 transition-colors" title="Xóa toàn bộ file">
+            <Trash2 size={16} />
+          </button>
           <button className="text-slate-400 p-1">{collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}</button>
         </div>
       </div>
@@ -1012,11 +1006,9 @@ function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopi
                   <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{topic.topic_name}</p>
                 </div>
               </div>
-              {user?.role === 'admin' && (
-                <button onClick={(e) => { e.stopPropagation(); handleDeleteTopic(topic.topic_id, topic.topic_name); }} className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white dark:bg-slate-700 rounded-lg shadow-sm">
-                  <Trash2 size={14} />
-                </button>
-              )}
+              <button onClick={(e) => { e.stopPropagation(); handleDeleteTopic(topic.topic_id, topic.topic_name); }} className="absolute top-4 right-4 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>
