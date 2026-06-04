@@ -832,6 +832,35 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
   const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) processFile(file); };
 
+  const sortedSessions = useMemo(() => {
+    const uniqueTopics = new Map();
+    topics.forEach(topic => {
+      const key = `${topic.session_name || "Chủ điểm hệ thống"}|||${topic.topic_name}`;
+      if (!uniqueTopics.has(key) || topic.topic_id > uniqueTopics.get(key).topic_id) {
+         uniqueTopics.set(key, topic);
+      }
+    });
+
+    const grouped = Array.from(uniqueTopics.values()).reduce((acc, topic) => {
+      const groupName = topic.session_name || "Chủ điểm hệ thống";
+      if (!acc[groupName]) acc[groupName] = [];
+      acc[groupName].push(topic);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped).map(([groupName, groupTopics]) => {
+      groupTopics.sort((a, b) => a.topic_name.localeCompare(b.topic_name, undefined, { numeric: true }));
+      return [groupName, groupTopics];
+    }).sort((a, b) => {
+      const matchA = a[0].match(/\d+/);
+      const matchB = b[0].match(/\d+/);
+      if (matchA && matchB) {
+        return parseInt(matchA[0], 10) - parseInt(matchB[0], 10);
+      }
+      return a[0].localeCompare(b[0], undefined, { numeric: true });
+    });
+  }, [topics]);
+
   if (selectedTopic) {
     return (
       <div className="animate-slide-up">
@@ -911,34 +940,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
     );
   }
 
-  const sortedSessions = useMemo(() => {
-    const uniqueTopics = new Map();
-    topics.forEach(topic => {
-      const key = `${topic.session_name || "Chủ điểm hệ thống"}|||${topic.topic_name}`;
-      if (!uniqueTopics.has(key) || topic.topic_id > uniqueTopics.get(key).topic_id) {
-         uniqueTopics.set(key, topic);
-      }
-    });
 
-    const grouped = Array.from(uniqueTopics.values()).reduce((acc, topic) => {
-      const groupName = topic.session_name || "Chủ điểm hệ thống";
-      if (!acc[groupName]) acc[groupName] = [];
-      acc[groupName].push(topic);
-      return acc;
-    }, {});
-
-    return Object.entries(grouped).map(([groupName, groupTopics]) => {
-      groupTopics.sort((a, b) => a.topic_name.localeCompare(b.topic_name, undefined, { numeric: true }));
-      return [groupName, groupTopics];
-    }).sort((a, b) => {
-      const matchA = a[0].match(/\d+/);
-      const matchB = b[0].match(/\d+/);
-      if (matchA && matchB) {
-        return parseInt(matchA[0], 10) - parseInt(matchB[0], 10);
-      }
-      return a[0].localeCompare(b[0], undefined, { numeric: true });
-    });
-  }, [topics]);
 
   return (
     <div>
