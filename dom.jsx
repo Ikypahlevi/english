@@ -410,6 +410,18 @@ export default function App() {
     } catch { showToast("Lỗi khi xóa chủ điểm.", "error"); }
   }, [selectedTopic, fetchInitialData]);
 
+  const handleDeleteGroup = useCallback(async (groupName, groupTopics) => {
+    if (!window.confirm(`Xóa toàn bộ file "${groupName}" gồm ${groupTopics.length} sheet và tất cả từ vựng?`)) return;
+    try {
+      await Promise.all(groupTopics.map(topic => axios.delete(`${API_BASE}/topics/${topic.topic_id}`)));
+      if (selectedTopic && groupTopics.find(t => t.topic_id === selectedTopic.topic_id)) { 
+        setSelectedTopic(null); setVocabList([]); 
+      }
+      await fetchInitialData();
+      showToast(`Đã xóa file "${groupName}"`, "success");
+    } catch { showToast("Lỗi khi xóa file.", "error"); }
+  }, [selectedTopic, fetchInitialData]);
+
   const handleDeleteVocab = useCallback(async (vocabId, word) => {
     try {
       await axios.delete(`${API_BASE}/vocabularies/${vocabId}`);
@@ -567,6 +579,7 @@ export default function App() {
                     processFile={processFile}
                     handleDeleteTopic={handleDeleteTopic}
                     handleDeleteVocab={handleDeleteVocab}
+                    handleDeleteGroup={handleDeleteGroup}
                     totalVocab={totalVocab}
                   />
                 </div>
@@ -777,7 +790,7 @@ function SheetSelectModal({ pendingWorkbook, selectedSheets, isSaving, toggleShe
 // ══════════════════════════════════════════════════════════════════
 // VOCAB LIST VIEW
 // ══════════════════════════════════════════════════════════════════
-function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab, selectTopic, backToTopics, handleFileUpload, processFile, handleDeleteTopic, handleDeleteVocab, totalVocab }) {
+function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab, selectTopic, backToTopics, handleFileUpload, processFile, handleDeleteTopic, handleDeleteVocab, handleDeleteGroup, totalVocab }) {
   const [isDragging, setIsDragging] = useState(false);
   const dropRef = useRef(null);
 
@@ -922,7 +935,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
       ) : (
         <div className="space-y-6">
           {sortedSessions.map(([groupName, groupTopics]) => (
-            <FileGroup key={groupName} user={user} groupName={groupName} groupTopics={groupTopics} selectTopic={selectTopic} handleDeleteTopic={handleDeleteTopic} />
+            <FileGroup key={groupName} user={user} groupName={groupName} groupTopics={groupTopics} selectTopic={selectTopic} handleDeleteTopic={handleDeleteTopic} handleDeleteGroup={handleDeleteGroup} />
           ))}
         </div>
       )}
@@ -930,7 +943,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
   );
 }
 
-function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopic }) {
+function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopic, handleDeleteGroup }) {
   const [collapsed, setCollapsed] = useState(false);
   const totalWords = groupTopics.reduce((s, t) => s + Number(t.vocab_count || 0), 0);
 
@@ -944,7 +957,14 @@ function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopi
             <p className="text-xs text-slate-500">{groupTopics.length} sheet • {totalWords} từ</p>
           </div>
         </div>
-        <button className="text-slate-400">{collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}</button>
+        <div className="flex items-center gap-2">
+          {user?.role === 'admin' && (
+            <button onClick={(e) => { e.stopPropagation(); handleDeleteGroup(groupName, groupTopics); }} className="p-2 text-slate-300 hover:text-red-500 transition-colors" title="Xóa toàn bộ file">
+              <Trash2 size={16} />
+            </button>
+          )}
+          <button className="text-slate-400 p-1">{collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}</button>
+        </div>
       </div>
       {!collapsed && (
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
