@@ -94,19 +94,23 @@ Example Format:
 };
 
 exports.checkAnswer = async (req, res) => {
-  const { word, correctMeaning, userAnswer } = req.body;
+  const { word, correctMeaning, userAnswer, isEnglishInput } = req.body;
   if (!word || !correctMeaning || !userAnswer) return res.status(400).json({ success: false, message: "Thiếu dữ liệu" });
 
   try {
     const apiKey = process.env.GEMINI_API_KEY || ""; 
-    const prompt = `Bạn là giám khảo máy móc chấm điểm từ vựng tiếng Anh.
-Từ gốc: "${word}"
-Nghĩa chuẩn: "${correctMeaning}"
+    const prompt = `Bạn là giám khảo AI siêu linh hoạt chấm điểm từ vựng.
+Từ gốc (Tiếng Anh): "${word}"
+Nghĩa chuẩn (Tiếng Việt): "${correctMeaning}"
 Câu trả lời của người dùng: "${userAnswer}"
+Người dùng đang nhập bằng ngôn ngữ: ${isEnglishInput ? "Tiếng Anh" : "Tiếng Việt"}
 
 Luật chấm điểm:
-1. Chỉ chấm điểm dựa trên ngữ nghĩa (chấp nhận từ đồng nghĩa, bao hàm ý nghĩa, bỏ qua hoa/thường, dấu câu).
-2. TUYỆT ĐỐI KHÔNG giải thích thêm.
+1. Chấm cực kỳ linh hoạt (lenient) dựa trên NGỮ NGHĨA:
+   - Chấp nhận mọi từ đồng nghĩa, nghĩa gần giống, hoặc cách diễn đạt tương đương.
+   - Nếu người dùng nhập sai một nghĩa, nhưng đó lại là MỘT NGHĨA KHÁC CHÍNH XÁC của từ gốc (trong từ điển chung) thì VẪN CHO LÀ ĐÚNG.
+   - Bỏ qua các lỗi chính tả nhỏ (typos) nếu vẫn hiểu được ý người dùng. Bỏ qua viết hoa/thường, dấu câu.
+2. TUYỆT ĐỐI KHÔNG giải thích dài dòng.
 3. Bắt buộc CHỈ trả về duy nhất chuỗi JSON chuẩn: {"isCorrect": boolean, "reason": "string ngắn giải thích lý do"}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
