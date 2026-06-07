@@ -1251,6 +1251,8 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState('start'); // start, playing, result
   const [mistakes, setMistakes] = useState([]);
+  const [streak, setStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
   
   // For multiple-choice
   const [selected, setSelected] = useState(null);
@@ -1285,6 +1287,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     });
     setQuestions(mixed); setIndex(0); setScore(0); setGameState('playing'); 
     setSelected(null); setFeedback(null); setInput(""); setMistakes([]);
+    setStreak(0); setMaxStreak(0);
   };
 
   useEffect(() => { if (setIsQuizOngoing) setIsQuizOngoing(gameState === 'playing'); }, [gameState, setIsQuizOngoing]);
@@ -1330,8 +1333,14 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     if (isCorrect) {
       playSound('correct');
       if (!q.hasFailed) setScore(s => s + 1);
+      setStreak(prev => {
+        const next = prev + 1;
+        setMaxStreak(m => Math.max(m, next));
+        return next;
+      });
     } else {
       playSound('wrong');
+      setStreak(0);
       setMistakes(prev => {
         if (prev.find(m => m.vocabulary_id === q.vocabulary_id)) return prev;
         return [...prev, { ...q, userAnswer: resultFeedback.userAnswer || "Không rõ", reason: resultFeedback.reason }];
@@ -1480,7 +1489,14 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
         <div className="text-6xl mb-4">🏆</div>
         <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
-        <p className="text-xl text-slate-600 mb-6">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {vocabList.length}</p>
+        <div className="flex justify-center items-center gap-6 mb-6">
+          <p className="text-xl text-slate-600">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {vocabList.length}</p>
+          {maxStreak >= 3 && (
+            <p className="text-xl text-orange-500 font-bold flex items-center gap-2" title="Chuỗi đúng liên tiếp dài nhất">
+              <Flame size={24} /> {maxStreak}
+            </p>
+          )}
+        </div>
 
         {mistakes.length > 0 && (
           <div className="mb-8 text-left bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
@@ -1540,7 +1556,14 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     <div className="max-w-2xl mx-auto">
       <div className="mb-4 flex justify-between items-center">
         <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
-        <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
+        <div className="flex items-center gap-4">
+          {streak > 1 && (
+            <span className="font-bold text-orange-500 flex items-center gap-1 animate-pulse" title="Chuỗi đúng liên tiếp">
+              <Flame size={18} className="fill-orange-500" /> {streak}
+            </span>
+          )}
+          <span className="font-bold text-slate-400">Câu {index + 1} / {questions.length}</span>
+        </div>
       </div>
       
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6 relative">
