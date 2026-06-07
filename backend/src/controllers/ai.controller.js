@@ -107,9 +107,11 @@ Người dùng đang nhập bằng ngôn ngữ: ${isEnglishInput ? "Tiếng Anh"
 
 Luật chấm điểm:
 1. Chấm cực kỳ linh hoạt (lenient) dựa trên NGỮ NGHĨA:
-   - Chấp nhận mọi từ đồng nghĩa, nghĩa gần giống, hoặc cách diễn đạt tương đương.
-   - Nếu người dùng nhập sai một nghĩa, nhưng đó lại là MỘT NGHĨA KHÁC CHÍNH XÁC của từ gốc (trong từ điển chung) thì VẪN CHO LÀ ĐÚNG.
-   - Bỏ qua các lỗi chính tả nhỏ (typos) nếu vẫn hiểu được ý người dùng. Bỏ qua viết hoa/thường, dấu câu.
+   - KHÔNG phân biệt chữ hoa, chữ thường (case-insensitive).
+   - KHÔNG phân biệt dấu câu, khoảng trắng thừa.
+   - Chấp nhận mọi từ đồng nghĩa, nghĩa gần giống, hoặc cách diễn đạt tương đương. Chỉ cần ĐÚNG NGHĨA hoặc NGHĨA GẦN GIỐNG là ĐƯỢC.
+   - Nếu người dùng nhập một nghĩa khác hoàn toàn so với "Nghĩa chuẩn" nhưng đó lại là MỘT NGHĨA KHÁC CHÍNH XÁC của từ gốc (trong từ điển chung) thì VẪN CHO LÀ ĐÚNG.
+   - Bỏ qua các lỗi chính tả nhỏ (typos) nếu vẫn hiểu được ý người dùng.
 2. TUYỆT ĐỐI KHÔNG giải thích dài dòng.
 3. Bắt buộc CHỈ trả về duy nhất chuỗi JSON chuẩn: {"isCorrect": boolean, "reason": "string ngắn giải thích lý do"}`;
 
@@ -134,8 +136,11 @@ Luật chấm điểm:
     res.json({ success: true, data: result });
   } catch (error) {
     const normalizedUser = String(userAnswer).trim().toLowerCase();
-    const normalizedCorrect = String(correctMeaning).trim().toLowerCase();
-    const fallbackCorrect = normalizedCorrect.includes(normalizedUser) && normalizedUser.length >= 3;
-    res.json({ success: true, data: { isCorrect: fallbackCorrect, reason: fallbackCorrect ? "Đúng (AI Fallback)" : "Sai (AI Fallback)" } });
+    const targetWord = isEnglishInput ? String(word) : String(correctMeaning);
+    const normalizedTarget = targetWord.trim().toLowerCase();
+    
+    // Fallback: Chấp nhận nếu từ khóa xuất hiện trong đáp án gốc hoặc ngược lại
+    const fallbackCorrect = normalizedTarget.includes(normalizedUser) || normalizedUser.includes(normalizedTarget);
+    res.json({ success: true, data: { isCorrect: fallbackCorrect, reason: fallbackCorrect ? "Đúng (Chấm tự động)" : "Sai (Chấm tự động)" } });
   }
 };
