@@ -88,6 +88,8 @@ Example Format:
     let errorMsg = error.message;
     if (errorMsg.includes("503")) {
       errorMsg = "Hệ thống AI đang quá tải (Google Server 503). Vui lòng thử lại sau ít phút.";
+    } else if (errorMsg.includes("429") || errorMsg.includes("Too Many Requests") || errorMsg.includes("quota")) {
+      errorMsg = "Đã vượt quá giới hạn lượt sử dụng AI miễn phí (Rate Limit). Vui lòng đợi khoảng 1 phút rồi thử lại.";
     }
     res.status(500).json({ success: false, message: "Lỗi nhận diện âm thanh: " + errorMsg });
   }
