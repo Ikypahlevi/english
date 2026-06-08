@@ -1387,8 +1387,8 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     let isCorrect = false;
     let resultFeedback = null;
 
-    // Chuẩn hóa chuỗi: lowercase, xóa MỌI loại dấu câu, ký tự đặc biệt
-    const normalizeStr = (s) => s ? String(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
+    // Chuẩn hóa chuỗi: lowercase, xóa dấu tiếng Việt, xóa MỌI loại dấu câu, ký tự đặc biệt
+    const normalizeStr = (s) => s ? String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
     
     const isEnglishInput = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi');
     const targetStr = isEnglishInput ? q.word : q.meaning;

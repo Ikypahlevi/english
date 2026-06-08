@@ -109,6 +109,7 @@ Luật chấm điểm:
 1. Chấm cực kỳ linh hoạt (lenient) dựa trên NGỮ NGHĨA:
    - KHÔNG phân biệt chữ hoa, chữ thường (case-insensitive).
    - KHÔNG phân biệt dấu câu, vị trí dấu câu, hoặc khoảng trắng thừa. Dấu câu nằm ở đâu cũng được.
+   - KHÔNG phân biệt dấu Tiếng Việt (gõ không dấu, hoặc gõ sai vị trí dấu thanh như "hòa" và "hoà" đều giống nhau).
    - Vị trí của các từ không nhất thiết phải đúng thứ tự tuyệt đối, miễn là ĐÚNG NGHĨA.
    - CHẤP NHẬN các nghĩa gần giống với nghĩa trong dữ liệu.
    - NẾU người dùng gõ từ có bao gồm cả các từ nằm trong dấu ngoặc đơn () nhưng KHÔNG gõ dấu ngoặc, hoặc gộp từ trong ngoặc và ngoài ngoặc thành 1 cụm, thì VẪN PHẢI TÍNH LÀ ĐÚNG. (VD: "giải trí (bằng âm nhạc)" mà người dùng gõ "giải trí bằng âm nhạc" -> ĐÚNG).
@@ -137,7 +138,7 @@ Luật chấm điểm:
     const result = JSON.parse(jsonMatch[0]);
     res.json({ success: true, data: result });
   } catch (error) {
-    const normalizeStr = (s) => s ? String(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
+    const normalizeStr = (s) => s ? String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
     const normalizedUser = normalizeStr(userAnswer);
     const targetWord = isEnglishInput ? String(word) : String(correctMeaning);
     const normalizedTarget = normalizeStr(targetWord);
