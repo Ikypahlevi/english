@@ -155,9 +155,9 @@ function AuthScreen({ onLoginSuccess }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-950">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 animate-scale-in">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 animate-scale-in">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-500/30">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-500/30">
             <GraduationCap size={32} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">EngMaster</h1>
@@ -584,11 +584,11 @@ export default function App() {
              <div className="p-8 space-y-8 animate-pulse max-w-5xl mx-auto w-full">
                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl w-1/4"></div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
-                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
-                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
+                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+                 <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
                </div>
-               <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-3xl w-full"></div>
+               <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full"></div>
              </div>
           ) : (
             <>
@@ -720,13 +720,13 @@ function DailyReviewView({ addXP, setIsQuizOngoing }) {
   }
 
   if (mode === "quiz") {
-    return <QuizView vocabList={reviews} setIsQuizOngoing={setIsQuizOngoing} onBack={handleFinishReview} addXP={addXP} updateSRS={true} onComplete={handleFinishReview} />;
+    return <IntegratedQuizView vocabList={reviews} setIsQuizOngoing={setIsQuizOngoing} onBack={handleFinishReview} addXP={addXP} updateSRS={true} onComplete={handleFinishReview} />;
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl p-8 text-white text-center mb-6 shadow-xl relative overflow-hidden">
-        <Sparkles size={120} className="absolute -top-10 -right-10 text-indigo-400 opacity-20 rotate-12" />
+    <div className="max-w-2xl mx-auto animate-fade-in">
+      <div className="bg-gradient-to-br from-brand-700 to-brand-900 rounded-2xl p-8 text-white text-center mb-6 shadow-xl relative overflow-hidden animate-slide-up">
+        <Sparkles size={120} className="absolute -top-10 -right-10 text-brand-400 opacity-20 rotate-12" />
         <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 relative z-10">
           <CalendarClock size={32} />
         </div>
@@ -740,16 +740,16 @@ function DailyReviewView({ addXP, setIsQuizOngoing }) {
       </div>
 
       {reviews.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button onClick={() => setMode('flashcard')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-md">
-            <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <button onClick={() => setMode('flashcard')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-lg hover:-translate-y-1">
+            <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <Layers size={24} />
             </div>
             <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1">Ôn bằng Flashcard</h3>
             <p className="text-xs text-slate-500">Tự đánh giá trí nhớ của bản thân qua thẻ lật</p>
           </button>
 
-          <button onClick={() => setMode('quiz')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-md">
+          <button onClick={() => setMode('quiz')} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl hover:border-brand-500 dark:hover:border-brand-500 transition-all group flex flex-col items-center text-center shadow-sm hover:shadow-lg hover:-translate-y-1">
             <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <BrainCircuit size={24} />
             </div>
@@ -758,8 +758,8 @@ function DailyReviewView({ addXP, setIsQuizOngoing }) {
           </button>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl text-center shadow-sm">
-          <CheckCircle2 size={64} className="mx-auto text-emerald-500 mb-4" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl text-center shadow-sm animate-scale-in">
+          <CheckCircle2 size={64} className="mx-auto text-emerald-500 mb-4 animate-bounce" />
           <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Đã học xong!</h3>
           <p className="text-slate-500 text-sm">Hệ thống Spaced Repetition (SRS) ghi nhận trí nhớ của bạn rất tốt. Hãy quay lại vào ngày mai để duy trì chuỗi Streak nhé.</p>
         </div>
@@ -774,7 +774,7 @@ function DailyReviewView({ addXP, setIsQuizOngoing }) {
 function SheetSelectModal({ pendingWorkbook, selectedSheets, isSaving, toggleSheetSelection, setSelectedSheets, handleImportSelectedSheets, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in border border-slate-200 dark:border-slate-700">
         <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -870,7 +870,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
           </button>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm mb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm mb-4">
           <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-5 flex items-center justify-between text-white">
             <div>
               <h2 className="text-xl font-bold">{selectedTopic.topic_name}</h2>
@@ -948,7 +948,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
       </div>
 
       <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        className={`relative mb-8 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
+        className={`relative mb-8 border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
           isDragging ? "border-brand-500 bg-brand-50 scale-[1.01]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-300"
         }`}>
           <label className="absolute inset-0 cursor-pointer" htmlFor="excel-upload" />
@@ -960,7 +960,7 @@ function VocabListView({ user, topics, selectedTopic, vocabList, isLoadingVocab,
       </div>
 
       {topics.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 py-16 text-center rounded-3xl border border-slate-200 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 py-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800">
           <FolderOpen size={48} className="mx-auto text-slate-300 mb-4" />
           <p className="text-slate-500">Chưa có dữ liệu, hãy tải lên file Excel.</p>
         </div>
@@ -980,7 +980,7 @@ function FileGroup({ user, groupName, groupTopics, selectTopic, handleDeleteTopi
   const totalWords = groupTopics.reduce((s, t) => s + Number(t.vocab_count || 0), 0);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
       <div className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800" onClick={() => setCollapsed(!collapsed)}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white"><FileSpreadsheet size={18} /></div>
@@ -1047,8 +1047,8 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
   const modeColor = mode === "flashcard" ? "from-violet-500 to-purple-600" : mode === "chat" ? "from-emerald-500 to-teal-600" : "from-brand-600 to-brand-500";
   
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className={`bg-gradient-to-r ${modeColor} rounded-3xl p-8 text-white text-center mb-6 shadow-xl`}>
+    <div className="max-w-2xl mx-auto animate-fade-in">
+      <div className={`bg-gradient-to-r ${modeColor} rounded-2xl p-8 text-white text-center mb-6 shadow-xl`}>
         <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
           {mode === "chat" ? <MessageSquare size={32} /> : <BrainCircuit size={32} />}
         </div>
@@ -1056,7 +1056,7 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
         <p className="text-white/80 text-sm">Chọn bộ đề để bắt đầu</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-4">
         <div className="flex flex-wrap gap-2 mb-4">
           <button onClick={() => setSelectedTopicIds(topics.map(t => t.topic_id))} className="text-xs px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 font-medium">Chọn tất cả</button>
           <button onClick={() => setSelectedTopicIds([])} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 font-medium">Bỏ chọn</button>
@@ -1176,7 +1176,7 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
   const progress = ((currentIndex + 1) / vocabList.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto text-center">
+    <div className="max-w-2xl mx-auto text-center animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
         <span className="font-bold text-slate-400">{currentIndex + 1} / {vocabList.length}</span>
@@ -1185,7 +1185,7 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
       
       <div className="flip-card w-full aspect-[4/3] cursor-pointer mb-8" onClick={() => setIsFlipped(!isFlipped)}>
         <div className={`flip-inner w-full h-full ${isFlipped ? "flipped" : ""}`}>
-          <div className="flip-front bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
+          <div className="flip-front bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 dark:opacity-20 pointer-events-none">
               <img 
                 src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=800&height=600&nologo=true`} 
@@ -1212,7 +1212,7 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
             </div>
             <p className="absolute bottom-6 inset-x-0 text-xs text-slate-400 dark:text-slate-500 font-medium z-10">Nhấn Space để lật</p>
           </div>
-          <div className="flip-back bg-brand-600 rounded-3xl flex flex-col justify-center text-white shadow-xl relative">
+          <div className="flip-back bg-brand-600 rounded-2xl flex flex-col justify-center text-white shadow-xl relative">
             <h2 className="text-4xl font-bold px-4">{currentWord.meaning}</h2>
           </div>
         </div>
@@ -1457,7 +1457,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'start') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-lg mx-auto">
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-2xl border border-slate-200 max-w-lg mx-auto">
         <BrainCircuit size={48} className="mx-auto text-brand-500 mb-4" />
         <h2 className="text-2xl font-bold mb-2">Kiểm tra Tổng hợp</h2>
         <p className="text-slate-500 mb-6 text-sm">Chọn các hình thức bạn muốn kiểm tra:</p>
@@ -1486,7 +1486,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'result') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-2xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
         <div className="text-6xl mb-4">🏆</div>
         <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
         <div className="flex justify-center items-center gap-6 mb-6">
@@ -1553,7 +1553,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto animate-fade-in">
       <div className="mb-4 flex justify-between items-center">
         <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
         <div className="flex items-center gap-4">
@@ -1566,7 +1566,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 p-12 text-center shadow-sm mb-6 relative">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 p-12 text-center shadow-sm mb-6 relative">
         <p className="text-sm font-bold text-brand-500 uppercase tracking-widest mb-4">
           {headerText}
         </p>
@@ -1833,7 +1833,7 @@ function AdminDashboardView() {
     return (
       <div className="p-8 space-y-6 animate-pulse max-w-2xl mx-auto mt-10">
         <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-1/3 mx-auto"></div>
-        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl w-full"></div>
+        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full"></div>
         <div className="flex justify-center gap-4">
            <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-32"></div>
            <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-32"></div>
@@ -1849,7 +1849,7 @@ function AdminDashboardView() {
         <p className="text-slate-500 mt-1">Tổng cộng: {users.length} người dùng</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -1934,13 +1934,13 @@ function AudioTranscriptionView() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-20">
+    <div className="max-w-2xl mx-auto pb-20 animate-fade-in">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Luyện Nghe & Dịch Âm Thanh</h2>
         <p className="text-slate-500 mt-1">Tải lên file âm thanh tiếng Anh để AI phân tích và dịch cho bạn.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
         <div 
           onClick={() => fileInputRef.current?.click()}
           className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center cursor-pointer hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition-all mb-6"
