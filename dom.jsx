@@ -488,99 +488,98 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <ToastContainer />
 
-      {/* ── TOP NAVBAR ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            
-            {/* Logo */}
-            <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleTabChange("review")}>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30">
-                <GraduationCap size={22} className="text-white" />
+      {/* ── SIDEBAR ─────────────────────────────────────────── */}
+      <aside className="w-64 shrink-0 hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 sticky top-0 h-screen shadow-sm transition-colors duration-300">
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30">
+            <GraduationCap size={22} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">EngMaster</h1>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Pro Learner</p>
+          </div>
+        </div>
+
+        {/* User Profile & Gamification Stats */}
+        <div className="px-4 py-4">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <User size={20} className="text-slate-500 dark:text-slate-400" />
               </div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight hidden lg:block">EngMaster</h1>
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">{user.email}</p>
+                <button onClick={handleLogout} className="text-xs text-rose-500 hover:text-rose-600 font-medium mt-0.5 flex items-center gap-1">
+                  <LogOut size={12} /> Đăng xuất
+                </button>
+              </div>
             </div>
-
-            {/* Navigation Links (Desktop) */}
-            <nav className="hidden md:flex flex-1 items-center justify-center gap-8 px-6">
-              {navItems.map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  onClick={() => handleTabChange(id)}
-                  className={`flex items-center gap-2 h-16 text-sm font-semibold transition-all border-b-2 relative ${
-                    activeTab === id
-                      ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <Icon size={18} className={`${activeTab === id ? "drop-shadow-sm" : "opacity-80"}`} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </nav>
-
-            {/* User Profile & Actions */}
-            <div className="flex items-center gap-5 flex-shrink-0">
-              <div className="hidden sm:flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm" title="Điểm kinh nghiệm (XP)">
-                  <Zap size={18} className="fill-amber-500 text-amber-500 drop-shadow-sm" /> 
-                  <span>{userStats.xp}</span>
+            <div className="flex justify-between items-center gap-2 text-center">
+              <div className="flex-1 bg-amber-50 dark:bg-amber-900/20 rounded-xl py-2">
+                <div className="flex items-center justify-center gap-1 text-amber-500 mb-0.5">
+                  <Zap size={14} className="fill-amber-500" /> <span className="font-bold">{userStats.xp}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-bold text-sm" title="Chuỗi ngày học liên tiếp">
-                  <Flame size={18} className="fill-orange-500 text-orange-500 drop-shadow-sm" /> 
-                  <span>{userStats.streak_days}</span>
-                </div>
+                <p className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-500/70">XP</p>
               </div>
-
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-
-              <div className="flex items-center gap-3">
-                <button onClick={() => setDark(d => !d)} className="text-slate-400 hover:text-amber-500 transition-colors" title={dark ? "Chế độ Sáng" : "Chế độ Tối"}>
-                  {dark ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
-                </button>
-                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-full pl-3 pr-1 py-1 border border-slate-200 dark:border-slate-700 shadow-sm">
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 max-w-[80px] truncate hidden lg:block">
-                    {user?.email?.split('@')[0]}
-                  </span>
-                  <div className="w-7 h-7 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center border border-slate-200 dark:border-slate-600" title={user?.email}>
-                    <User size={14} className="text-slate-500 dark:text-slate-400" />
-                  </div>
-                  <button onClick={handleLogout} className="w-7 h-7 flex items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" title="Đăng xuất">
-                    <LogOut size={12} />
-                  </button>
+              <div className="flex-1 bg-orange-50 dark:bg-orange-900/20 rounded-xl py-2">
+                <div className="flex items-center justify-center gap-1 text-orange-500 mb-0.5">
+                  <Flame size={14} className="fill-orange-500" /> <span className="font-bold">{userStats.streak_days}</span>
                 </div>
+                <p className="text-[10px] uppercase font-bold text-orange-600/70 dark:text-orange-500/70">Ngày chuỗi</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Mobile Navigation Scrollable Row */}
-        <div className="md:hidden border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-x-auto scrollbar-none shadow-sm">
-          <nav className="flex items-center gap-4 px-4 py-0">
-            {navItems.map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => handleTabChange(id)}
-                className={`flex-shrink-0 flex items-center gap-2 py-3 border-b-2 font-medium transition-all ${
-                  activeTab === id
-                    ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                    : "border-transparent text-slate-500 dark:text-slate-400"
-                }`}
-              >
-                <Icon size={16} />
-                <span className="text-sm">{label}</span>
-              </button>
-            ))}
-          </nav>
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+          {navItems.map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => handleTabChange(id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                activeTab === id
+                  ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-md shadow-brand-500/20"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="px-4 pb-6 mt-auto">
+          <button onClick={() => setDark(d => !d)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            {dark ? <Sun size={18} className="text-amber-400 group-hover:rotate-12 transition-transform" /> : <Moon size={18} className="group-hover:-rotate-12 transition-transform" />}
+            <span>{dark ? "Chế độ Sáng" : "Chế độ Tối"}</span>
+          </button>
         </div>
-      </header>
+      </aside>
+
+      {/* ── MOBILE TOP BAR ───────────────────────────────────── */}
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 bg-white/80 dark:bg-slate-900/90 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between transition-colors duration-300">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
+            <GraduationCap size={16} className="text-white" />
+          </div>
+          <span className="font-bold text-slate-900 dark:text-white">EngMaster</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-orange-500 text-sm font-bold bg-orange-50 dark:bg-orange-900/30 px-2 py-1 rounded-lg">
+            <Flame size={14} className="fill-orange-500" /> {userStats.streak_days}
+          </div>
+          <button onClick={() => setDark(d => !d)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            {dark ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-600" />}
+          </button>
+        </div>
+      </div>
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-5xl w-full mx-auto">
+        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 mt-14 md:mt-0 max-w-5xl w-full mx-auto">
           {isLoadingTopics ? (
              <div className="p-8 space-y-8 animate-pulse max-w-5xl mx-auto w-full">
                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl w-1/4"></div>
