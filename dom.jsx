@@ -1387,8 +1387,8 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     let isCorrect = false;
     let resultFeedback = null;
 
-    // Chuẩn hóa chuỗi: lowercase, xóa khoảng trắng thừa, xóa dấu câu và dấu ngoặc
-    const normalizeStr = (s) => s.toLowerCase().replace(/[.,:;()[\]{}"'-]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Chuẩn hóa chuỗi: lowercase, xóa MỌI loại dấu câu, ký tự đặc biệt
+    const normalizeStr = (s) => s ? String(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
     
     const isEnglishInput = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi');
     const targetStr = isEnglishInput ? q.word : q.meaning;
@@ -1399,8 +1399,16 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     // Tách các nghĩa nếu có dấu phẩy hoặc |
     const targetParts = targetStr.split(/[,|;]/).map(normalizeStr);
     
+    // So khớp không phân biệt vị trí từ (word order independent)
+    const checkWordsMatch = (str1, str2) => {
+      if (!str1 || !str2) return false;
+      const w1 = str1.split(' ').sort().join(' ');
+      const w2 = str2.split(' ').sort().join(' ');
+      return w1 === w2;
+    };
+
     // So khớp nhanh tại frontend
-    if (normInput === normTarget || targetParts.includes(normInput)) {
+    if (normInput === normTarget || targetParts.includes(normInput) || checkWordsMatch(normInput, normTarget) || targetParts.some(part => checkWordsMatch(normInput, part))) {
       isCorrect = true;
       resultFeedback = { isCorrect: true, reason: "Đúng (Khớp chính xác)", userAnswer: input.trim() };
     } else {

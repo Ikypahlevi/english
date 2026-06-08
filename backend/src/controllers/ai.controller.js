@@ -108,7 +108,8 @@ Người dùng đang nhập bằng ngôn ngữ: ${isEnglishInput ? "Tiếng Anh"
 Luật chấm điểm: 
 1. Chấm cực kỳ linh hoạt (lenient) dựa trên NGỮ NGHĨA:
    - KHÔNG phân biệt chữ hoa, chữ thường (case-insensitive).
-   - KHÔNG phân biệt dấu câu, khoảng trắng thừa.
+   - KHÔNG phân biệt dấu câu, vị trí dấu câu, hoặc khoảng trắng thừa. Dấu câu nằm ở đâu cũng được.
+   - Vị trí của các từ không nhất thiết phải đúng thứ tự tuyệt đối, miễn là ĐÚNG NGHĨA.
    - CHẤP NHẬN các nghĩa gần giống với nghĩa trong dữ liệu.
    - NẾU người dùng gõ từ có bao gồm cả các từ nằm trong dấu ngoặc đơn () nhưng KHÔNG gõ dấu ngoặc, hoặc gộp từ trong ngoặc và ngoài ngoặc thành 1 cụm, thì VẪN PHẢI TÍNH LÀ ĐÚNG. (VD: "giải trí (bằng âm nhạc)" mà người dùng gõ "giải trí bằng âm nhạc" -> ĐÚNG).
    - Nếu người dùng nhập một nghĩa khác hoàn toàn so với "Nghĩa chuẩn" nhưng đó lại là MỘT NGHĨA KHÁC CHÍNH XÁC của từ gốc (trong từ điển chung) thì VẪN CHO LÀ ĐÚNG.
@@ -136,14 +137,27 @@ Luật chấm điểm:
     const result = JSON.parse(jsonMatch[0]);
     res.json({ success: true, data: result });
   } catch (error) {
-    const normalizeStr = (s) => String(s).toLowerCase().replace(/[.,:;()[\]{}"'-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalizeStr = (s) => s ? String(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
     const normalizedUser = normalizeStr(userAnswer);
     const targetWord = isEnglishInput ? String(word) : String(correctMeaning);
     const normalizedTarget = normalizeStr(targetWord);
     
+    // So khớp không phân biệt vị trí từ (word order independent)
+    const checkWordsMatch = (str1, str2) => {
+      if (!str1 || !str2) return false;
+      const w1 = str1.split(' ').sort().join(' ');
+      const w2 = str2.split(' ').sort().join(' ');
+      return w1 === w2;
+    };
+    
     // Fallback: Chấp nhận nếu từ khóa xuất hiện trong đáp án gốc hoặc ngược lại
     const targetParts = targetWord.split(/[,|;]/).map(normalizeStr);
-    const fallbackCorrect = normalizedTarget.includes(normalizedUser) || normalizedUser.includes(normalizedTarget) || targetParts.includes(normalizedUser);
+    const fallbackCorrect = normalizedTarget.includes(normalizedUser) || 
+                            normalizedUser.includes(normalizedTarget) || 
+                            targetParts.includes(normalizedUser) ||
+                            checkWordsMatch(normalizedUser, normalizedTarget) ||
+                            targetParts.some(part => checkWordsMatch(normalizedUser, part));
+                            
     res.json({ success: true, data: { isCorrect: fallbackCorrect, reason: fallbackCorrect ? "Đúng (Chấm tự động)" : "Sai (Chấm tự động)" } });
   }
 };
