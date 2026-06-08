@@ -105,11 +105,12 @@ Nghĩa chuẩn (Tiếng Việt): "${correctMeaning}"
 Câu trả lời của người dùng: "${userAnswer}"
 Người dùng đang nhập bằng ngôn ngữ: ${isEnglishInput ? "Tiếng Anh" : "Tiếng Việt"}
 
-Luật chấm điểm:
+Luật chấm điểm: 
 1. Chấm cực kỳ linh hoạt (lenient) dựa trên NGỮ NGHĨA:
    - KHÔNG phân biệt chữ hoa, chữ thường (case-insensitive).
    - KHÔNG phân biệt dấu câu, khoảng trắng thừa.
-   - Chấp nhận mọi từ đồng nghĩa, nghĩa gần giống, hoặc cách diễn đạt tương đương. Chỉ cần ĐÚNG NGHĨA hoặc NGHĨA GẦN GIỐNG là ĐƯỢC.
+   - CHẤP NHẬN các nghĩa gần giống với nghĩa trong dữ liệu.
+   - NẾU người dùng gõ từ có bao gồm cả các từ nằm trong dấu ngoặc đơn () nhưng KHÔNG gõ dấu ngoặc, hoặc gộp từ trong ngoặc và ngoài ngoặc thành 1 cụm, thì VẪN PHẢI TÍNH LÀ ĐÚNG. (VD: "giải trí (bằng âm nhạc)" mà người dùng gõ "giải trí bằng âm nhạc" -> ĐÚNG).
    - Nếu người dùng nhập một nghĩa khác hoàn toàn so với "Nghĩa chuẩn" nhưng đó lại là MỘT NGHĨA KHÁC CHÍNH XÁC của từ gốc (trong từ điển chung) thì VẪN CHO LÀ ĐÚNG.
    - Bỏ qua các lỗi chính tả nhỏ (typos) nếu vẫn hiểu được ý người dùng.
 2. TUYỆT ĐỐI KHÔNG giải thích dài dòng.
@@ -135,12 +136,14 @@ Luật chấm điểm:
     const result = JSON.parse(jsonMatch[0]);
     res.json({ success: true, data: result });
   } catch (error) {
-    const normalizedUser = String(userAnswer).trim().toLowerCase();
+    const normalizeStr = (s) => String(s).toLowerCase().replace(/[.,:;()[\]{}"'-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalizedUser = normalizeStr(userAnswer);
     const targetWord = isEnglishInput ? String(word) : String(correctMeaning);
-    const normalizedTarget = targetWord.trim().toLowerCase();
+    const normalizedTarget = normalizeStr(targetWord);
     
     // Fallback: Chấp nhận nếu từ khóa xuất hiện trong đáp án gốc hoặc ngược lại
-    const fallbackCorrect = normalizedTarget.includes(normalizedUser) || normalizedUser.includes(normalizedTarget);
+    const targetParts = targetWord.split(/[,|;]/).map(normalizeStr);
+    const fallbackCorrect = normalizedTarget.includes(normalizedUser) || normalizedUser.includes(normalizedTarget) || targetParts.includes(normalizedUser);
     res.json({ success: true, data: { isCorrect: fallbackCorrect, reason: fallbackCorrect ? "Đúng (Chấm tự động)" : "Sai (Chấm tự động)" } });
   }
 };

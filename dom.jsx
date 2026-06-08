@@ -1387,28 +1387,43 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     let isCorrect = false;
     let resultFeedback = null;
 
-    try {
-      // Dùng AI chấm cho tất cả trường hợp để linh hoạt từ đồng nghĩa/nghĩa khác
-      const isEnglishInput = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi');
-      const res = await axios.post(`${API_BASE}/check-answer`, {
-        word: q.word,
-        correctMeaning: q.meaning,
-        userAnswer: input.trim(),
-        isEnglishInput: isEnglishInput
-      });
-      if (res.data.success) {
-        isCorrect = res.data.data.isCorrect;
-        resultFeedback = res.data.data;
-        resultFeedback.userAnswer = input.trim();
-      } else {
-        throw new Error("API returned error");
+    // Chuẩn hóa chuỗi: lowercase, xóa khoảng trắng thừa, xóa dấu câu và dấu ngoặc
+    const normalizeStr = (s) => s.toLowerCase().replace(/[.,:;()[\]{}"'-]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    const isEnglishInput = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi');
+    const targetStr = isEnglishInput ? q.word : q.meaning;
+    
+    const normInput = normalizeStr(input);
+    const normTarget = normalizeStr(targetStr);
+    
+    // Tách các nghĩa nếu có dấu phẩy hoặc |
+    const targetParts = targetStr.split(/[,|;]/).map(normalizeStr);
+    
+    // So khớp nhanh tại frontend
+    if (normInput === normTarget || targetParts.includes(normInput)) {
+      isCorrect = true;
+      resultFeedback = { isCorrect: true, reason: "Đúng (Khớp chính xác)", userAnswer: input.trim() };
+    } else {
+      try {
+        // Dùng AI chấm cho các trường hợp từ đồng nghĩa/nghĩa khác
+        const res = await axios.post(`${API_BASE}/check-answer`, {
+          word: q.word,
+          correctMeaning: q.meaning,
+          userAnswer: input.trim(),
+          isEnglishInput: isEnglishInput
+        });
+        if (res.data.success) {
+          isCorrect = res.data.data.isCorrect;
+          resultFeedback = res.data.data;
+          resultFeedback.userAnswer = input.trim();
+        } else {
+          throw new Error("API returned error");
+        }
+      } catch (e) {
+        // Fallback
+        isCorrect = normTarget.includes(normInput) && normInput.length >= 3;
+        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Đáp án đúng: ${targetStr}`, userAnswer: input.trim() };
       }
-    } catch (e) {
-      // Fallback
-      const normalizedInput = input.trim().toLowerCase();
-      const normalizedTarget = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word.toLowerCase() : q.meaning.toLowerCase();
-      isCorrect = normalizedTarget.includes(normalizedInput) && normalizedInput.length >= 3;
-      resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Đáp án: ${normalizedTarget}`, userAnswer: input.trim() };
     }
     
     await processResult(isCorrect, resultFeedback, q);
