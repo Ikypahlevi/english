@@ -10,8 +10,6 @@ import axios from "axios";
 import confetti from "canvas-confetti";
 import localforage from "localforage";
 import LeaderboardView from "./src/views/LeaderboardView.jsx";
-import AdminDashboardView from "./src/views/AdminDashboardView.jsx";
-import AudioTranscriptionView from "./src/views/AudioTranscriptionView.jsx";
 import DashboardView from "./src/views/DashboardView.jsx";
 import AIFloatingChat from "./src/components/AIFloatingChat.jsx";
 
