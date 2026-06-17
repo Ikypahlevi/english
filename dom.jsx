@@ -185,7 +185,7 @@ function AuthScreen({ onLoginSuccess }) {
           </div>
           
           <button type="submit" disabled={loading}
-            className="w-full py-4 mt-2 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:from-brand-700 hover:to-brand-600 transition-all shadow-lg shadow-brand-500/30 disabled:opacity-50 flex items-center justify-center">
+            className="vip-btn w-full py-4 mt-2 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:from-brand-700 hover:to-brand-600 transition-all shadow-lg shadow-brand-500/40 disabled:opacity-50 flex items-center justify-center overflow-hidden relative">
             {loading ? <Loader2 className="animate-spin" size={20} /> : (isLogin ? "Đăng nhập" : "Đăng ký")}
           </button>
         </form>
@@ -488,98 +488,93 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <ToastContainer />
 
-      {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-64 shrink-0 hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 sticky top-0 h-screen shadow-sm transition-colors duration-300">
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30">
-            <GraduationCap size={22} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">EngMaster</h1>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Pro Learner</p>
-          </div>
-        </div>
-
-        {/* User Profile & Gamification Stats */}
-        <div className="px-4 py-4">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
-              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                <User size={20} className="text-slate-500 dark:text-slate-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">{user.email}</p>
-                <button onClick={handleLogout} className="text-xs text-rose-500 hover:text-rose-600 font-medium mt-0.5 flex items-center gap-1">
-                  <LogOut size={12} /> Đăng xuất
-                </button>
-              </div>
+      {/* ── VIP TOP HEADER ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm transition-all duration-300">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:animate-pulse-slow transition-all duration-300">
+              <GraduationCap size={22} className="text-white" />
             </div>
-            <div className="flex justify-between items-center gap-2 text-center">
-              <div className="flex-1 bg-amber-50 dark:bg-amber-900/20 rounded-xl py-2">
-                <div className="flex items-center justify-center gap-1 text-amber-500 mb-0.5">
-                  <Zap size={14} className="fill-amber-500" /> <span className="font-bold">{userStats.xp}</span>
-                </div>
-                <p className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-500/70">XP</p>
-              </div>
-              <div className="flex-1 bg-orange-50 dark:bg-orange-900/20 rounded-xl py-2">
-                <div className="flex items-center justify-center gap-1 text-orange-500 mb-0.5">
-                  <Flame size={14} className="fill-orange-500" /> <span className="font-bold">{userStats.streak_days}</span>
-                </div>
-                <p className="text-[10px] uppercase font-bold text-orange-600/70 dark:text-orange-500/70">Ngày chuỗi</p>
-              </div>
+            <h1 className="text-xl font-black bg-gradient-to-r from-brand-700 to-brand-500 dark:from-brand-300 dark:to-brand-100 bg-clip-text text-transparent tracking-tight hidden sm:block">EngMaster</h1>
+          </div>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-2">
+            {navItems.map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                onClick={() => handleTabChange(id)}
+                className={`nav-item px-5 py-2 flex items-center gap-2 font-medium text-sm transition-all ${
+                  activeTab === id
+                    ? "nav-active"
+                    : "text-slate-600 dark:text-slate-400"
+                }`}
+              >
+                <Icon size={18} className={activeTab === id ? "animate-bounce" : ""} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Gamification Stats & Profile */}
+          <div className="flex items-center gap-3 md:gap-5">
+            <div className="flex items-center gap-3">
+               <div className="flex items-center gap-1.5 hover:-translate-y-0.5 transition-transform cursor-default" title="Kinh nghiệm">
+                 <div className="relative">
+                   <Zap size={20} className="fill-amber-500 text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse-slow" />
+                 </div>
+                 <span className="font-bold text-slate-800 dark:text-white text-sm">{userStats.xp}</span>
+               </div>
+               <div className="flex items-center gap-1.5 hover:-translate-y-0.5 transition-transform cursor-default" title="Chuỗi ngày học">
+                 <div className="relative">
+                   <Flame size={20} className="fill-orange-500 text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)] animate-pulse-slow" />
+                 </div>
+                 <span className="font-bold text-slate-800 dark:text-white text-sm">{userStats.streak_days}</span>
+               </div>
+            </div>
+
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={() => setDark(d => !d)} className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-110 group">
+                {dark ? <Sun size={20} className="group-hover:text-amber-400 group-hover:rotate-45 transition-all" /> : <Moon size={20} className="group-hover:text-brand-500 group-hover:-rotate-12 transition-all" />}
+              </button>
+              
+              <button onClick={handleLogout} className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 transition-all hover:scale-110" title="Đăng xuất">
+                <LogOut size={20} />
+              </button>
             </div>
           </div>
         </div>
+      </header>
 
-        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-          {navItems.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => handleTabChange(id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                activeTab === id
-                  ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-md shadow-brand-500/20"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="px-4 pb-6 mt-auto">
-          <button onClick={() => setDark(d => !d)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
-            {dark ? <Sun size={18} className="text-amber-400 group-hover:rotate-12 transition-transform" /> : <Moon size={18} className="group-hover:-rotate-12 transition-transform" />}
-            <span>{dark ? "Chế độ Sáng" : "Chế độ Tối"}</span>
+      {/* ── MOBILE BOTTOM NAV ────────────────────────────────── */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-800/50 px-2 pb-safe pt-2 flex items-center justify-around shadow-[0_-10px_20px_rgba(0,0,0,0.05)] dark:shadow-none">
+        {navItems.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            onClick={() => handleTabChange(id)}
+            className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl gap-1 text-[10px] font-bold transition-all ${
+              activeTab === id
+                ? "text-brand-600 dark:text-brand-400"
+                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            }`}
+          >
+            <div className={`p-1.5 rounded-lg transition-all ${activeTab === id ? 'bg-brand-50 dark:bg-brand-900/30' : ''}`}>
+              <Icon size={22} className={activeTab === id ? "animate-bounce drop-shadow-md" : ""} />
+            </div>
+            <span>{label}</span>
           </button>
-        </div>
-      </aside>
-
-      {/* ── MOBILE TOP BAR ───────────────────────────────────── */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-30 bg-white/80 dark:bg-slate-900/90 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between transition-colors duration-300">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
-            <GraduationCap size={16} className="text-white" />
-          </div>
-          <span className="font-bold text-slate-900 dark:text-white">EngMaster</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-orange-500 text-sm font-bold bg-orange-50 dark:bg-orange-900/30 px-2 py-1 rounded-lg">
-            <Flame size={14} className="fill-orange-500" /> {userStats.streak_days}
-          </div>
-          <button onClick={() => setDark(d => !d)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            {dark ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-600" />}
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 mt-14 md:mt-0 max-w-5xl w-full mx-auto">
+      <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-0">
+        <main className="flex-1 px-4 md:px-8 py-8 md:py-10 max-w-5xl w-full mx-auto">
           {isLoadingTopics ? (
              <div className="p-8 space-y-8 animate-pulse max-w-5xl mx-auto w-full">
                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl w-1/4"></div>
@@ -652,19 +647,6 @@ export default function App() {
           )}
         </main>
 
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/90 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex transition-colors duration-300 pb-safe">
-          {navItems.map(({ id, icon: Icon, label }) => (
-            <button key={id} onClick={() => handleTabChange(id)}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] sm:text-xs font-medium transition-all ${
-                activeTab === id ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"
-              }`}>
-              <Icon size={20} className="mb-0.5" /><span>{label}</span>
-            </button>
-          ))}
-          <button onClick={handleLogout} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] sm:text-xs font-medium text-slate-400 dark:text-slate-500 transition-all">
-            <LogOut size={20} className="mb-0.5" /><span>Thoát</span>
-          </button>
-        </nav>
       </div>
 
       {pendingWorkbook && (
@@ -1114,7 +1096,7 @@ function FlashcardQuizWrapper({ topics, mode, setIsQuizOngoing, addXP }) {
         })()}
         </div>
         <button onClick={handleStart} disabled={selectedTopicIds.length === 0 || isLoading}
-          className={`w-full py-4 mt-2 font-bold rounded-2xl text-white shadow-lg disabled:opacity-50 flex justify-center bg-gradient-to-r ${modeColor}`}>
+          className={`vip-btn w-full py-4 mt-2 font-bold rounded-2xl text-white shadow-lg disabled:opacity-50 flex justify-center bg-gradient-to-r ${modeColor} shadow-brand-500/40`}>
           {isLoading ? <Loader2 className="animate-spin" /> : "BẮT ĐẦU"}
         </button>
       </div>
@@ -1501,7 +1483,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
           ))}
         </div>
 
-        <button onClick={startQuiz} className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg mb-4">Bắt đầu</button>
+        <button onClick={startQuiz} className="vip-btn w-full py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:shadow-brand-500/40 shadow-lg mb-4">Bắt đầu</button>
         <button onClick={onBack} className="text-slate-500 font-medium hover:text-slate-800">Quay lại</button>
       </div>
     );
@@ -1546,7 +1528,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
         <div className="flex gap-4">
           <button onClick={onComplete || onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
-          <button onClick={startQuiz} className="flex-1 py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg">Làm lại</button>
+          <button onClick={startQuiz} className="vip-btn flex-1 py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/40">Làm lại</button>
         </div>
       </div>
     );
