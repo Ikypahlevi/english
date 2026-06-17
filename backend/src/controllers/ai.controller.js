@@ -13,6 +13,10 @@ exports.chat = async (req, res) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+    const systemInstruction = selectedTopic 
+      ? `You are a friendly, encouraging English tutor. Practice conversation with the user using the vocabulary from the topic: "${selectedTopic}". Keep responses short (1-3 sentences) and conversational.`
+      : `You are a friendly, encouraging English tutor. Practice conversation with the user in English. Keep responses short (1-3 sentences) and conversational. Correct their grammar gently if needed.`;
+
     const chat = model.startChat({
       history: messages.slice(0, -1).map(msg => ({
         role: msg.role === "user" ? "user" : "model",
@@ -20,7 +24,7 @@ exports.chat = async (req, res) => {
       })),
       systemInstruction: {
         role: "system",
-        parts: [{ text: `You are a friendly, encouraging English tutor. Practice conversation with the user using the vocabulary from the topic: "${selectedTopic}". Keep responses short (1-3 sentences) and conversational.` }]
+        parts: [{ text: systemInstruction }]
       }
     });
 
@@ -44,14 +48,13 @@ exports.transcribe = async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    const prompt = `Please transcribe the spoken English in this audio file. Format your response sentence-by-sentence (or dialogue-by-dialogue). 
-For each transcribed English sentence:
-1. Write the English sentence. If this is a test/quiz audio, try to identify the correct answer or key phrases and format them with an underline (using markdown HTML like <u>underlined text</u> or **bold**).
-2. Immediately below it, provide the Vietnamese translation for that specific sentence.
+    const prompt = `Please transcribe the spoken English in this audio file. Format your response clearly. 
+For each spoken segment, write ONLY the English transcription. Do NOT provide any translations. If there are multiple speakers, format it clearly.
+If this is a test/quiz audio, try to identify the correct answer or key phrases and format them with an underline (using markdown HTML like <u>underlined text</u> or **bold**).
 
 Example Format:
-**English:** She is <u>holding a pen</u>.
-**Dịch:** Cô ấy đang cầm một cây bút.`;
+She is <u>holding a pen</u>.
+They are talking about the project.`;
 
     const audioPart = {
       inlineData: {

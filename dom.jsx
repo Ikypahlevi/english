@@ -10,6 +10,10 @@ import axios from "axios";
 import confetti from "canvas-confetti";
 import localforage from "localforage";
 import LeaderboardView from "./src/views/LeaderboardView.jsx";
+import AdminDashboardView from "./src/views/AdminDashboardView.jsx";
+import AudioTranscriptionView from "./src/views/AudioTranscriptionView.jsx";
+import DashboardView from "./src/views/DashboardView.jsx";
+import AIFloatingChat from "./src/components/AIFloatingChat.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
@@ -242,7 +246,7 @@ export default function App() {
   
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [isLoadingVocab, setIsLoadingVocab] = useState(false);
-  const [activeTab, setActiveTab] = useState("review"); // Đổi mặc định sang tab Ôn tập
+  const [activeTab, setActiveTab] = useState("dashboard"); // Mặc định là trang tổng quan
   const [isXlsxLoaded, setIsXlsxLoaded] = useState(false);
   const [pendingWorkbook, setPendingWorkbook] = useState(null);
   const [selectedSheets, setSelectedSheets] = useState([]);
@@ -466,13 +470,11 @@ export default function App() {
   const totalVocab = useMemo(() => topics.reduce((s, t) => s + Number(t.vocab_count || 0), 0), [topics]);
 
   const navItems = [
-    { id: "review",    icon: CalendarClock,  label: "Ôn tập" },
+    { id: "dashboard", icon: LayoutDashboard, label: "Tổng quan" },
     { id: "list",      icon: BookOpen,       label: "Kho từ" },
     { id: "flashcard", icon: Layers,         label: "Thẻ bài" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
-    { id: "chat",      icon: MessageSquare,  label: "Giao tiếp AI" },
     { id: "transcribe",icon: Headphones,     label: "Luyện nghe" },
-    { id: "leaderboard",icon: Trophy,        label: "Bảng xếp hạng" },
   ];
   if (user?.role === 'admin') {
     navItems.push({ id: "admin", icon: Users, label: "Quản trị" });
@@ -587,9 +589,9 @@ export default function App() {
              </div>
           ) : (
             <>
-              {activeTab === "review" && (
+              {activeTab === "dashboard" && (
                 <div className="animate-slide-up">
-                  <DailyReviewView addXP={addXP} setIsQuizOngoing={setIsQuizOngoing} />
+                  <DashboardView userStats={userStats} totalTopics={topics.length} totalVocab={totalVocab} />
                 </div>
               )}
               {activeTab === "list" && (
@@ -648,6 +650,8 @@ export default function App() {
         </main>
 
       </div>
+
+      <AIFloatingChat user={user} />
 
       {pendingWorkbook && (
         <SheetSelectModal
@@ -1899,9 +1903,18 @@ function AdminDashboardView() {
 // ══════════════════════════════════════════════════════════════════
 function AudioTranscriptionView() {
   const [file, setFile] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [result, setResult] = useState("");
+  const [translation, setTranslation] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
 
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
@@ -1912,6 +1925,24 @@ function AudioTranscriptionView() {
       }
       setFile(selected);
       setResult("");
+      setTranslation("");
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioUrl(URL.createObjectURL(selected));
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!result) return;
+    setIsTranslating(true);
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(result)}`;
+      const { data } = await axios.get(url);
+      const translatedText = data[0].map(x => x[0]).join('');
+      setTranslation(translatedText);
+    } catch (e) {
+      showToast("Lỗi khi dịch văn bản", "error");
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -1919,6 +1950,7 @@ function AudioTranscriptionView() {
     if (!file) return;
     setIsTranscribing(true);
     setResult("");
+    setTranslation("");
 
     const formData = new FormData();
     formData.append("audio", file);
@@ -1929,10 +1961,10 @@ function AudioTranscriptionView() {
       });
       if (res.data.success) {
         setResult(res.data.text);
-        showToast("Dịch thành công!", "success");
+        showToast("Trích xuất thành công!", "success");
       }
     } catch (e) {
-      showToast(e.response?.data?.message || "Lỗi dịch âm thanh", "error");
+      showToast(e.response?.data?.message || "Lỗi trích xuất âm thanh", "error");
     } finally {
       setIsTranscribing(false);
     }
@@ -1941,8 +1973,8 @@ function AudioTranscriptionView() {
   return (
     <div className="max-w-2xl mx-auto pb-20 animate-fade-in">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Luyện Nghe & Dịch Âm Thanh</h2>
-        <p className="text-slate-500 mt-1">Tải lên file âm thanh tiếng Anh để AI phân tích và dịch cho bạn.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Trích xuất Văn bản (Luyện Nghe)</h2>
+        <p className="text-slate-500 mt-1">Tải lên file âm thanh để lấy Transcript, sau đó có thể dịch bằng 1 click.</p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
@@ -1966,22 +1998,46 @@ function AudioTranscriptionView() {
           <p className="text-xs text-slate-400 mt-2">Hỗ trợ: mp3, wav, m4a, ogg (Tối đa 10MB)</p>
         </div>
 
+        {audioUrl && (
+          <div className="mb-6">
+            <audio controls src={audioUrl} className="w-full h-12 rounded-xl outline-none" />
+          </div>
+        )}
+
         <button 
           onClick={handleTranscribe} 
           disabled={!file || isTranscribing}
-          className="w-full py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:from-brand-700 hover:to-brand-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 shadow-lg shadow-brand-500/20"
+          className="vip-btn w-full py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:from-brand-700 hover:to-brand-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 shadow-lg shadow-brand-500/20"
         >
           {isTranscribing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-          {isTranscribing ? "AI đang phân tích âm thanh..." : "Phân tích & Dịch"}
+          {isTranscribing ? "AI đang phân tích âm thanh..." : "Trích xuất Văn bản"}
         </button>
 
         {result && (
           <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 animate-slide-up">
-            <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Kết quả:</h3>
+            <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Transcript (Tiếng Anh):</h3>
             <div 
-              className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-slate-700 dark:text-slate-300 font-medium leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }}
+              className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-slate-700 dark:text-slate-300 font-medium leading-relaxed mb-4 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
             />
+            
+            {!translation ? (
+              <button 
+                onClick={handleTranslate} 
+                disabled={isTranslating}
+                className="vip-btn w-full py-3 border-2 border-brand-500 text-brand-600 font-bold rounded-2xl hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+              >
+                {isTranslating ? <Loader2 size={18} className="animate-spin" /> : <BookOpen size={18} />}
+                Dịch sang Tiếng Việt
+              </button>
+            ) : (
+              <div className="mt-6 animate-fade-in">
+                <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Bản Dịch:</h3>
+                <div className="bg-brand-50 dark:bg-brand-900/10 rounded-2xl p-6 text-slate-700 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-wrap">
+                  {translation}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
