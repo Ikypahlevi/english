@@ -11,21 +11,20 @@ exports.chat = async (req, res) => {
     if (!apiKey) throw new Error("Chưa cấu hình GEMINI_API_KEY.");
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     const systemInstruction = selectedTopic 
       ? `You are a friendly, encouraging English tutor. Practice conversation with the user using the vocabulary from the topic: "${selectedTopic}". Keep responses short (1-3 sentences) and conversational.`
       : `You are a friendly, encouraging English tutor. Practice conversation with the user in English. Keep responses short (1-3 sentences) and conversational. Correct their grammar gently if needed.`;
+
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: systemInstruction 
+    });
 
     const chat = model.startChat({
       history: messages.slice(0, -1).map(msg => ({
         role: msg.role === "user" ? "user" : "model",
         parts: [{ text: msg.content }]
-      })),
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: systemInstruction }]
-      }
+      }))
     });
 
     const userMessage = messages[messages.length - 1].content;
@@ -69,7 +68,7 @@ They are talking about the project.`;
     
     for (let i = 0; i < retries; i++) {
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         result = await model.generateContent([prompt, audioPart]);
         break; 
       } catch (error) {
@@ -123,7 +122,7 @@ Luật chấm điểm:
 2. TUYỆT ĐỐI KHÔNG giải thích dài dòng.
 3. Bắt buộc CHỈ trả về duy nhất chuỗi JSON chuẩn: {"isCorrect": boolean, "reason": "string ngắn giải thích lý do"}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
