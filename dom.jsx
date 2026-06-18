@@ -1484,14 +1484,14 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'start') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 max-w-2xl mx-auto shadow-2xl shadow-brand-500/5 animate-scale-in">
-        <div className="w-24 h-24 bg-brand-50 dark:bg-brand-900/30 rounded-3xl mx-auto flex items-center justify-center mb-6">
-          <BrainCircuit size={48} className="text-brand-500 animate-pulse-slow" />
+      <div className="text-center bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 max-w-2xl mx-auto shadow-2xl shadow-brand-500/5 animate-scale-in">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-brand-50 dark:bg-brand-900/30 rounded-3xl mx-auto flex items-center justify-center mb-4 sm:mb-6">
+          <BrainCircuit size={36} className="text-brand-500 animate-pulse-slow sm:w-12 sm:h-12" />
         </div>
-        <h2 className="text-3xl font-black mb-3 text-slate-900 dark:text-white">Kiểm tra Tổng hợp</h2>
-        <p className="text-slate-500 mb-8 font-medium">Chọn chế độ bạn muốn thử sức hôm nay:</p>
+        <h2 className="text-2xl sm:text-3xl font-black mb-2 text-slate-900 dark:text-white">Kiểm tra Tổng hợp</h2>
+        <p className="text-slate-500 mb-6 font-medium text-sm sm:text-base">Chọn chế độ bạn muốn thử sức hôm nay:</p>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 text-left">
           {allModes.map(m => {
             const isSelected = selectedMode === m.id;
             let icon = <CheckCircle2 />;
@@ -1501,31 +1501,31 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
             return (
               <button key={m.id} onClick={() => setSelectedMode(m.id)}
-                className={`p-5 rounded-2xl border-2 flex items-center gap-4 font-medium transition-all group ${
+                className={`p-3 sm:p-4 rounded-2xl border-2 flex items-center gap-3 sm:gap-4 font-medium transition-all group ${
                   isSelected 
                     ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 shadow-md transform -translate-y-1" 
                     : "border-slate-200 text-slate-500 hover:border-brand-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 hover:-translate-y-1"
                 }`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                   isSelected ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-500'
                 }`}>
-                  {icon}
+                  {React.cloneElement(icon, { size: 18 })}
                 </div>
                 <div className="flex-1">
-                  <span className={`block text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{m.label}</span>
+                  <span className={`block text-base sm:text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{m.label}</span>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'}`}>
-                   {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                   {isSelected && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />}
                 </div>
               </button>
             )
           })}
         </div>
 
-        <button onClick={startQuiz} className="vip-btn w-full py-5 text-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:shadow-brand-500/40 shadow-xl mb-4 uppercase tracking-wider">
+        <button onClick={startQuiz} className="vip-btn w-full py-3 sm:py-4 text-lg sm:text-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:shadow-brand-500/40 shadow-xl mb-3 sm:mb-4 uppercase tracking-wider">
           Bắt đầu ngay
         </button>
-        <button onClick={onBack} className="text-slate-400 font-semibold hover:text-slate-600 transition-colors">Quay lại</button>
+        <button onClick={onBack} className="text-slate-400 font-semibold text-sm sm:text-base hover:text-slate-600 transition-colors">Quay lại</button>
       </div>
     );
   }
