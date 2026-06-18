@@ -59,6 +59,15 @@ const playSound = (type) => {
       gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
       osc.start(audioCtx.currentTime);
       osc.stop(audioCtx.currentTime + 0.3);
+    } else if (type === 'flip') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+      gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.15);
     }
   } catch (e) { console.log("Audio not supported"); }
 };
@@ -1141,6 +1150,7 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
     const handleKeyDown = (e) => {
       if (e.code === 'Space') { 
         e.preventDefault(); 
+        playSound('flip');
         setIsFlipped(f => !f); 
       }
       
@@ -1160,25 +1170,27 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
   const progress = ((currentIndex + 1) / vocabList.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto text-center animate-fade-in">
+    <div className="max-w-3xl mx-auto text-center animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
-        <span className="font-bold text-slate-400">{currentIndex + 1} / {vocabList.length}</span>
+        <span className="font-bold text-slate-400 text-lg">{currentIndex + 1} / {vocabList.length}</span>
       </div>
-      <div className="h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-8"><div className="h-full bg-brand-500 rounded-full transition-all" style={{width: `${progress}%`}}/></div>
+      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-10 overflow-hidden shadow-inner">
+        <div className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-all duration-500 ease-out" style={{width: `${progress}%`}}/>
+      </div>
       
-      <div className="flip-card w-full aspect-[4/3] cursor-pointer mb-8" onClick={() => setIsFlipped(!isFlipped)}>
+      <div className="flip-card w-full aspect-[4/3] sm:aspect-[16/9] cursor-pointer mb-10 group" onClick={() => { playSound('flip'); setIsFlipped(!isFlipped); }}>
         <div className={`flip-inner w-full h-full ${isFlipped ? "flipped" : ""}`}>
-          <div className="flip-front bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10 dark:opacity-20 pointer-events-none">
+          <div className="flip-front bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center shadow-2xl shadow-brand-500/10 relative overflow-hidden group-hover:border-brand-300 transition-colors">
+            <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
               <img 
                 src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=800&height=600&nologo=true`} 
                 alt="bg" 
-                className="w-full h-full object-cover blur-md"
+                className="w-full h-full object-cover blur-xl scale-110"
               />
             </div>
             <div className="relative z-10 flex flex-col items-center w-full px-4">
-              <div className="w-40 h-40 mb-6 rounded-2xl overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <div className="w-48 h-48 mb-8 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
                  <img 
                   src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=400&height=400&nologo=true`} 
                   alt={currentWord.word} 
@@ -1186,40 +1198,48 @@ function FlashcardView({ vocabList, onBack, addXP, updateSRS, onComplete }) {
                   loading="lazy"
                 />
               </div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-5xl font-bold text-slate-900 dark:text-white">{currentWord.word}</h2>
-                <button onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }} className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors" title="Nghe phát âm">
-                  <Volume2 size={24} />
+              <div className="flex items-center gap-4 mb-3">
+                <h2 className="text-5xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tight">{currentWord.word}</h2>
+                <button onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }} className="w-14 h-14 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 dark:hover:bg-brand-800 hover:scale-110 transition-all shadow-md" title="Nghe phát âm">
+                  <Volume2 size={28} />
                 </button>
               </div>
-              {currentWord.ipa && <p className="text-brand-500 font-mono text-xl bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-lg backdrop-blur-sm inline-block shadow-sm">{currentWord.ipa}</p>}
+              {currentWord.ipa && <p className="text-brand-500 font-mono text-2xl bg-brand-50 dark:bg-slate-800 px-6 py-2 rounded-xl inline-block font-medium">{currentWord.ipa}</p>}
             </div>
-            <p className="absolute bottom-6 inset-x-0 text-xs text-slate-400 dark:text-slate-500 font-medium z-10">Nhấn Space để lật</p>
+            <p className="absolute bottom-6 inset-x-0 text-sm text-slate-400 dark:text-slate-500 font-semibold z-10 animate-bounce">Nhấn Space để lật</p>
           </div>
-          <div className="flip-back bg-brand-600 rounded-2xl flex flex-col justify-center text-white shadow-xl relative">
-            <h2 className="text-4xl font-bold px-4">{currentWord.meaning}</h2>
+          <div className="flip-back bg-gradient-to-br from-brand-600 to-brand-500 rounded-[2rem] flex flex-col justify-center items-center text-white shadow-2xl relative border-4 border-brand-400/30">
+            <h2 className="text-5xl sm:text-6xl font-black px-6 text-center leading-tight">{currentWord.meaning}</h2>
           </div>
         </div>
       </div>
       
       {isFlipped ? (
-        <div className="grid grid-cols-4 gap-2 animate-fade-in">
-          <button onClick={() => submitRating(0)} className="py-4 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold rounded-2xl hover:bg-rose-200 border-2 border-transparent hover:border-rose-300 transition-all flex flex-col items-center">
-            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 1</span> Quên
+        <div className="grid grid-cols-4 gap-3 animate-slide-up">
+          <button onClick={() => submitRating(0)} className="group py-5 bg-white dark:bg-slate-900 text-rose-500 font-bold rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:-translate-y-1 transition-all flex flex-col items-center shadow-sm">
+            <span className="text-3xl mb-2 group-hover:scale-125 transition-transform">😔</span>
+            <span className="text-lg">Quên</span>
+            <span className="text-xs opacity-50 mt-1 font-medium">Phím 1</span>
           </button>
-          <button onClick={() => submitRating(2)} className="py-4 bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-bold rounded-2xl hover:bg-orange-200 border-2 border-transparent hover:border-orange-300 transition-all flex flex-col items-center">
-            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 2</span> Khó
+          <button onClick={() => submitRating(2)} className="group py-5 bg-white dark:bg-slate-900 text-orange-500 font-bold rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:-translate-y-1 transition-all flex flex-col items-center shadow-sm">
+            <span className="text-3xl mb-2 group-hover:scale-125 transition-transform">🤔</span>
+            <span className="text-lg">Khó</span>
+            <span className="text-xs opacity-50 mt-1 font-medium">Phím 2</span>
           </button>
-          <button onClick={() => submitRating(4)} className="py-4 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-bold rounded-2xl hover:bg-emerald-200 border-2 border-transparent hover:border-emerald-300 transition-all flex flex-col items-center">
-            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 3</span> Tốt
+          <button onClick={() => submitRating(4)} className="group py-5 bg-white dark:bg-slate-900 text-emerald-500 font-bold rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:-translate-y-1 transition-all flex flex-col items-center shadow-sm">
+            <span className="text-3xl mb-2 group-hover:scale-125 transition-transform">😊</span>
+            <span className="text-lg">Tốt</span>
+            <span className="text-xs opacity-50 mt-1 font-medium">Phím 3</span>
           </button>
-          <button onClick={() => submitRating(5)} className="py-4 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold rounded-2xl hover:bg-blue-200 border-2 border-transparent hover:border-blue-300 transition-all flex flex-col items-center">
-            <span className="text-xs opacity-60 font-normal mb-0.5">Phím 4</span> Dễ
+          <button onClick={() => submitRating(5)} className="group py-5 bg-white dark:bg-slate-900 text-blue-500 font-bold rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:-translate-y-1 transition-all flex flex-col items-center shadow-sm">
+            <span className="text-3xl mb-2 group-hover:scale-125 transition-transform">🤩</span>
+            <span className="text-lg">Dễ</span>
+            <span className="text-xs opacity-50 mt-1 font-medium">Phím 4</span>
           </button>
         </div>
       ) : (
-        <div className="h-16 opacity-50 flex items-center justify-center text-sm font-medium text-slate-400">
-          Hãy cố gắng nhớ nghĩa của từ trước khi lật thẻ
+        <div className="h-28 opacity-60 flex items-center justify-center text-base font-semibold text-slate-400 animate-pulse">
+          Cố gắng nhớ nghĩa của từ trước khi lật thẻ nhé!
         </div>
       )}
     </div>
@@ -1464,63 +1484,94 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
 
   if (gameState === 'start') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-2xl border border-slate-200 max-w-lg mx-auto">
-        <BrainCircuit size={48} className="mx-auto text-brand-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Kiểm tra Tổng hợp</h2>
-        <p className="text-slate-500 mb-6 text-sm">Chọn các hình thức bạn muốn kiểm tra:</p>
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 max-w-2xl mx-auto shadow-2xl shadow-brand-500/5 animate-scale-in">
+        <div className="w-24 h-24 bg-brand-50 dark:bg-brand-900/30 rounded-3xl mx-auto flex items-center justify-center mb-6">
+          <BrainCircuit size={48} className="text-brand-500 animate-pulse-slow" />
+        </div>
+        <h2 className="text-3xl font-black mb-3 text-slate-900 dark:text-white">Kiểm tra Tổng hợp</h2>
+        <p className="text-slate-500 mb-8 font-medium">Chọn chế độ bạn muốn thử sức hôm nay:</p>
         
-        <div className="grid grid-cols-2 gap-2 mb-6 text-left">
-          {allModes.map(m => (
-            <button key={m.id} onClick={() => setSelectedMode(m.id)}
-              className={`p-3 rounded-xl border-2 flex items-center gap-2 text-sm font-medium transition-all ${
-                selectedMode === m.id 
-                  ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300" 
-                  : "border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-              }`}>
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center border flex-shrink-0 ${selectedMode === m.id ? 'bg-brand-500 border-brand-500' : 'border-slate-300 dark:border-slate-600'}`}>
-                {selectedMode === m.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </div>
-              <span className="truncate">{m.label}</span>
-            </button>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+          {allModes.map(m => {
+            const isSelected = selectedMode === m.id;
+            let icon = <CheckCircle2 />;
+            if (m.id.includes('typing')) icon = <Keyboard />;
+            if (m.id.includes('listen')) icon = <Headphones />;
+            if (m.id === 'multiple-choice') icon = <Layers />;
+
+            return (
+              <button key={m.id} onClick={() => setSelectedMode(m.id)}
+                className={`p-5 rounded-2xl border-2 flex items-center gap-4 font-medium transition-all group ${
+                  isSelected 
+                    ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 shadow-md transform -translate-y-1" 
+                    : "border-slate-200 text-slate-500 hover:border-brand-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 hover:-translate-y-1"
+                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                  isSelected ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-500'
+                }`}>
+                  {icon}
+                </div>
+                <div className="flex-1">
+                  <span className={`block text-lg ${isSelected ? 'font-bold' : 'font-semibold'}`}>{m.label}</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                   {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </button>
+            )
+          })}
         </div>
 
-        <button onClick={startQuiz} className="vip-btn w-full py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:shadow-brand-500/40 shadow-lg mb-4">Bắt đầu</button>
-        <button onClick={onBack} className="text-slate-500 font-medium hover:text-slate-800">Quay lại</button>
+        <button onClick={startQuiz} className="vip-btn w-full py-5 text-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl hover:shadow-brand-500/40 shadow-xl mb-4 uppercase tracking-wider">
+          Bắt đầu ngay
+        </button>
+        <button onClick={onBack} className="text-slate-400 font-semibold hover:text-slate-600 transition-colors">Quay lại</button>
       </div>
     );
   }
 
   if (gameState === 'result') {
     return (
-      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-2xl border border-slate-200 max-w-2xl mx-auto animate-scale-in">
-        <div className="text-6xl mb-4">🏆</div>
-        <h2 className="text-3xl font-black mb-2">Hoàn thành!</h2>
-        <div className="flex justify-center items-center gap-6 mb-6">
-          <p className="text-xl text-slate-600">Bạn đúng <span className="text-brand-600 font-bold text-3xl">{score}</span> / {vocabList.length}</p>
-          {maxStreak >= 3 && (
-            <p className="text-xl text-orange-500 font-bold flex items-center gap-2" title="Chuỗi đúng liên tiếp dài nhất">
-              <Flame size={24} /> {maxStreak}
+      <div className="text-center bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 max-w-2xl mx-auto shadow-2xl shadow-brand-500/10 animate-bounce-soft">
+        <div className="text-7xl mb-6">🏆</div>
+        <h2 className="text-4xl font-black mb-4 text-slate-900 dark:text-white">Hoàn thành xuất sắc!</h2>
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8 mb-8 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-700">
+          <div className="text-center">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Điểm số</p>
+            <p className="text-2xl text-slate-600 dark:text-slate-300 font-medium">
+              <span className="text-brand-500 font-black text-5xl mr-1">{score}</span> / {vocabList.length}
             </p>
+          </div>
+          {maxStreak >= 3 && (
+            <div className="hidden sm:block w-px h-16 bg-slate-200 dark:bg-slate-700"></div>
+          )}
+          {maxStreak >= 3 && (
+            <div className="text-center">
+               <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Chuỗi dài nhất</p>
+               <p className="text-4xl text-orange-500 font-black flex items-center justify-center gap-2" title="Chuỗi đúng liên tiếp dài nhất">
+                <Flame size={32} className="fill-orange-500" /> {maxStreak}
+              </p>
+            </div>
           )}
         </div>
 
         {mistakes.length > 0 && (
-          <div className="mb-8 text-left bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-              <XCircle className="text-red-500" size={20} /> Danh sách từ cần ôn lại ({mistakes.length})
+          <div className="mb-8 text-left">
+            <h3 className="font-black text-xl mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+              <XCircle className="text-red-500" size={24} /> Cần ôn tập lại ({mistakes.length})
             </h3>
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+            <div className="space-y-4 max-h-72 overflow-y-auto pr-2 scrollbar-thin">
               {mistakes.map((m, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                    <span className="font-bold text-lg text-slate-900 dark:text-white">{m.word}</span>
-                    <span className="text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full">
+                <div key={i} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border-2 border-red-100 dark:border-red-900/30 shadow-sm relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-400"></div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 pl-2">
+                    <span className="font-black text-xl text-slate-900 dark:text-white">{m.word}</span>
+                    <span className="text-sm font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300 px-4 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
                       Đúng: {m.qType.includes('vi-en') || m.qType === 'listen-vi' ? m.word : m.meaning}
                     </span>
                   </div>
-                  <div className="text-sm text-slate-500 mb-1">
-                    Bạn chọn/nhập: <span className="line-through text-red-500 font-medium">{m.userAnswer}</span>
+                  <div className="text-sm text-slate-600 dark:text-slate-400 pl-2 font-medium">
+                    Bạn chọn: <span className="line-through text-red-500 font-bold ml-1">{m.userAnswer}</span>
                   </div>
                 </div>
               ))}
@@ -1528,9 +1579,9 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
           </div>
         )}
 
-        <div className="flex gap-4">
-          <button onClick={onComplete || onBack} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl hover:bg-slate-200 text-slate-700">Đóng</button>
-          <button onClick={startQuiz} className="vip-btn flex-1 py-4 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/40">Làm lại</button>
+        <div className="flex flex-col sm:flex-row gap-4 mt-8">
+          <button onClick={onComplete || onBack} className="flex-1 py-5 bg-slate-100 dark:bg-slate-800 font-bold text-xl rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border-2 border-transparent">Về trang chủ</button>
+          <button onClick={startQuiz} className="vip-btn flex-1 py-5 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold text-xl rounded-2xl shadow-xl shadow-brand-500/30 uppercase tracking-wide">Chơi lại ngay</button>
         </div>
       </div>
     );
@@ -1559,8 +1610,10 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     isListenMode = true;
   }
 
+  const progress = (index / questions.length) * 100;
+
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="max-w-3xl mx-auto animate-fade-in pb-24">
       <div className="mb-4 flex justify-between items-center">
         <button onClick={onBack} className="text-slate-500 hover:text-brand-500 flex items-center gap-1 font-medium"><ArrowLeft size={16}/> Thoát</button>
         <div className="flex items-center gap-4">
@@ -1573,8 +1626,12 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 p-12 text-center shadow-sm mb-6 relative">
-        <p className="text-sm font-bold text-brand-500 uppercase tracking-widest mb-4">
+      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8 overflow-hidden shadow-inner">
+        <div className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-all duration-500 ease-out" style={{width: `${progress}%`}}/>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 p-8 sm:p-14 text-center shadow-2xl shadow-brand-500/5 mb-8 relative">
+        <p className="text-sm font-bold text-brand-500 uppercase tracking-widest mb-6">
           {headerText}
         </p>
         
@@ -1586,10 +1643,10 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
           </div>
         ) : (
           <div className="flex justify-center items-center gap-3 mb-2">
-            <h3 className="text-4xl font-bold text-slate-900 dark:text-white">{displayWord}</h3>
+            <h3 className="text-5xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tight">{displayWord}</h3>
             {(q.qType === 'multiple-choice' || q.qType === 'typing-en-vi') && (
-              <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-10 h-10 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 transition-colors" title="Nghe phát âm">
-                <Volume2 size={24} />
+              <button onClick={(e) => { e.stopPropagation(); speakWord(q.word); }} className="w-14 h-14 rounded-full bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 transition-colors shadow-sm" title="Nghe phát âm">
+                <Volume2 size={28} />
               </button>
             )}
           </div>
@@ -1599,22 +1656,22 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       {q.qType === 'multiple-choice' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {q.options.map((opt, i) => {
-            let cls = "bg-white dark:bg-slate-900 border-2 border-slate-200 hover:border-brand-400";
+            let cls = "bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 hover:border-brand-400 hover:shadow-lg hover:-translate-y-1 shadow-sm";
             if (selected) {
-              if (opt === q.meaning) cls = "bg-emerald-50 border-emerald-500 text-emerald-700";
-              else if (opt === selected) cls = "bg-red-50 border-red-500 text-red-700";
-              else cls = "opacity-50";
+              if (opt === q.meaning) cls = "bg-emerald-50 border-emerald-500 text-emerald-700 shadow-md transform -translate-y-1 scale-105 z-10 animate-bounce-soft";
+              else if (opt === selected) cls = "bg-red-50 border-red-500 text-red-700 animate-shake";
+              else cls = "opacity-40 scale-95";
             }
             return (
-              <button key={i} onClick={() => handleMCQAnswer(opt)} disabled={!!selected} className={`p-4 rounded-2xl text-lg font-medium transition-all text-left flex items-center ${cls}`}>
-                <span className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0">{i+1}</span> 
+              <button key={i} onClick={() => handleMCQAnswer(opt)} disabled={!!selected} className={`p-5 rounded-2xl text-xl font-bold transition-all duration-300 text-left flex items-center ${cls}`}>
+                <span className={`w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-sm font-black flex items-center justify-center mr-4 flex-shrink-0 ${selected && opt === q.meaning ? 'bg-emerald-200 text-emerald-800' : ''}`}>{i+1}</span> 
                 {opt}
               </button>
             );
           })}
         </div>
       ) : (
-        <div className="relative">
+        <div className="relative max-w-lg mx-auto">
           <input 
             ref={inputRef}
             type="text" 
@@ -1622,33 +1679,47 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
             onChange={(e) => setInput(e.target.value)} 
             onKeyDown={handleKeyDown}
             disabled={!!feedback || isChecking}
-            placeholder="Nhập câu trả lời của bạn..." 
-            className={`w-full py-5 px-6 rounded-2xl text-xl font-medium border-2 focus:outline-none transition-all ${
+            placeholder="Gõ đáp án vào đây..." 
+            className={`w-full py-4 text-center bg-transparent text-3xl sm:text-4xl font-bold border-b-4 focus:outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700 ${
               feedback 
-                ? feedback.isCorrect ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-red-50 border-red-500 text-red-700"
-                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:border-brand-500"
+                ? feedback.isCorrect ? "border-emerald-500 text-emerald-600" : "border-red-500 text-red-600"
+                : "border-slate-200 dark:border-slate-700 focus:border-brand-500 text-slate-800 dark:text-white"
             }`}
           />
-          {isChecking && <Loader2 className="absolute right-6 top-5 animate-spin text-brand-500" size={24} />}
+          {isChecking && <Loader2 className="absolute right-0 top-6 animate-spin text-brand-500" size={28} />}
         </div>
       )}
 
-      {feedback && !feedback.isCorrect && (
-        <div className={`mt-4 p-4 rounded-xl font-medium flex items-start gap-3 animate-slide-up bg-red-100 text-red-800`}>
-          <XCircle className="mt-0.5 shrink-0" />
-          <div className="flex-1 text-left">
-            <p className="font-bold text-lg">Chưa đúng</p>
-            <p className="opacity-90">{feedback.reason}</p>
-            {q.qType !== 'multiple-choice' && (
-              <div className="bg-red-50/50 p-3 rounded-xl border border-red-200/50 mt-3">
-                <span className="text-xs font-bold uppercase tracking-wider opacity-70 block mb-1">Đáp án đúng:</span>
-                <span className="text-xl font-bold text-red-900">{(q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word : q.meaning}</span>
+      {feedback && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-banner">
+          <div className={`w-full ${feedback.isCorrect ? 'bg-emerald-100 dark:bg-emerald-900 border-t-2 border-emerald-200 dark:border-emerald-800' : 'bg-red-100 dark:bg-red-900 border-t-2 border-red-200 dark:border-red-800'} p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]`}>
+            <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${feedback.isCorrect ? 'bg-emerald-200 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-300' : 'bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-300'}`}>
+                  {feedback.isCorrect ? <CheckCircle2 size={32} /> : <XCircle size={32} />}
+                </div>
+                <div>
+                  <h3 className={`text-2xl font-black mb-1 ${feedback.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+                    {feedback.isCorrect ? "Tuyệt vời!" : "Chưa đúng rồi"}
+                  </h3>
+                  {!feedback.isCorrect && q.qType !== 'multiple-choice' && (
+                    <div className="text-red-900 dark:text-red-200 font-medium text-lg">
+                      Đáp án đúng: <span className="font-black text-xl">{(q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word : q.meaning}</span>
+                    </div>
+                  )}
+                  <p className={`text-sm mt-1 font-medium ${feedback.isCorrect ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-red-600/80 dark:text-red-400/80'}`}>{feedback.reason}</p>
+                </div>
               </div>
-            )}
+              <button 
+                onClick={() => nextQuestion()} 
+                className={`py-4 px-8 rounded-2xl font-black text-xl w-full sm:w-auto shadow-lg hover:-translate-y-1 transition-all ${
+                  feedback.isCorrect ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/30' : 'bg-red-500 hover:bg-red-400 text-white shadow-red-500/30'
+                }`}
+              >
+                Tiếp tục
+              </button>
+            </div>
           </div>
-          <button onClick={() => nextQuestion()} className="px-6 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-colors whitespace-nowrap">
-            Tiếp tục (Enter)
-          </button>
         </div>
       )}
     </div>
