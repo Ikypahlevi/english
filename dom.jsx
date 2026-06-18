@@ -11,7 +11,7 @@ import confetti from "canvas-confetti";
 import localforage from "localforage";
 import LeaderboardView from "./src/views/LeaderboardView.jsx";
 import DashboardView from "./src/views/DashboardView.jsx";
-import AIFloatingChat from "./src/components/AIFloatingChat.jsx";
+
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
@@ -658,7 +658,7 @@ export default function App() {
 
       </div>
 
-      <AIFloatingChat user={user} />
+      {/* Đã xoá AIFloatingChat theo yêu cầu */}
 
       {pendingWorkbook && (
         <SheetSelectModal
