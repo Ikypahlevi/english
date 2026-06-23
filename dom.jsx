@@ -1397,27 +1397,41 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     const isEnglishInput = (q.qType === 'typing-vi-en' || q.qType === 'listen-vi');
     const targetStr = isEnglishInput ? q.word : q.meaning;
     
+    // Tìm các đáp án hợp lệ từ danh sách từ vựng (từ đồng nghĩa / các nghĩa khác của cùng 1 từ)
+    let validTargets = [];
+    if (isEnglishInput) {
+      validTargets = vocabList.filter(v => normalizeStr(v.meaning) === normalizeStr(q.meaning)).map(v => v.word);
+    } else {
+      validTargets = vocabList.filter(v => normalizeStr(v.word) === normalizeStr(q.word)).map(v => v.meaning);
+    }
+    if (!validTargets.includes(targetStr)) validTargets.push(targetStr);
+
     const normInput = normalizeStr(input);
-    const normTarget = normalizeStr(targetStr);
-    
-    // Tách các nghĩa nếu có dấu phẩy hoặc |
-    const targetParts = targetStr.split(/[,|;]/).map(normalizeStr);
-    
-    // So khớp không phân biệt vị trí từ (word order independent)
+
     const checkWordsMatch = (str1, str2) => {
       if (!str1 || !str2) return false;
-      const w1 = str1.split(' ').sort().join(' ');
-      const w2 = str2.split(' ').sort().join(' ');
-      return w1 === w2;
+      return str1.split(' ').sort().join(' ') === str2.split(' ').sort().join(' ');
     };
 
-    // So khớp nhanh tại frontend
-    if (normInput === normTarget || targetParts.includes(normInput) || checkWordsMatch(normInput, normTarget) || targetParts.some(part => checkWordsMatch(normInput, part))) {
-      isCorrect = true;
-      resultFeedback = { isCorrect: true, reason: "Đúng (Khớp chính xác)", userAnswer: input.trim() };
-    } else {
+    const checkAgainstTarget = (tStr) => {
+      const nTarget = normalizeStr(tStr);
+      const tParts = tStr.split(/[,|;]/).map(normalizeStr);
+      return (normInput === nTarget || tParts.includes(normInput) || checkWordsMatch(normInput, nTarget) || tParts.some(part => checkWordsMatch(normInput, part)));
+    };
+
+    let matchFound = false;
+    for (const tStr of validTargets) {
+      if (checkAgainstTarget(tStr)) {
+        isCorrect = true;
+        resultFeedback = { isCorrect: true, reason: "Đúng (Khớp chính xác)", userAnswer: input.trim() };
+        matchFound = true;
+        break;
+      }
+    }
+
+    if (!matchFound) {
       try {
-        // Dùng AI chấm cho các trường hợp từ đồng nghĩa/nghĩa khác
+        // Dùng AI chấm cho các trường hợp từ đồng nghĩa/nghĩa khác (nếu API hoạt động)
         const res = await axios.post(`${API_BASE}/check-answer`, {
           word: q.word,
           correctMeaning: q.meaning,
@@ -1432,9 +1446,17 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
           throw new Error("API returned error");
         }
       } catch (e) {
-        // Fallback
-        isCorrect = normTarget.includes(normInput) && normInput.length >= 3;
-        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (AI Fallback)" : `Sai. Đáp án đúng: ${targetStr}`, userAnswer: input.trim() };
+        // Fallback: Kiểm tra xem input có nằm trong bất kỳ target hợp lệ nào không
+        let fallbackCorrect = false;
+        for (const tStr of validTargets) {
+          const nTarget = normalizeStr(tStr);
+          if (nTarget.includes(normInput) && normInput.length >= 3) {
+            fallbackCorrect = true;
+            break;
+          }
+        }
+        isCorrect = fallbackCorrect;
+        resultFeedback = { isCorrect, reason: isCorrect ? "Chấp nhận (Gần đúng)" : `Sai. Đáp án đúng: ${targetStr}`, userAnswer: input.trim() };
       }
     }
     
