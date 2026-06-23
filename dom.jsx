@@ -1713,34 +1713,23 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
       )}
 
       {feedback && !feedback.isCorrect && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-banner">
-          <div className={`w-full ${feedback.isCorrect ? 'bg-emerald-100 dark:bg-emerald-900 border-t-2 border-emerald-200 dark:border-emerald-800' : 'bg-red-100 dark:bg-red-900 border-t-2 border-red-200 dark:border-red-800'} p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]`}>
-            <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${feedback.isCorrect ? 'bg-emerald-200 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-300' : 'bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-300'}`}>
-                  {feedback.isCorrect ? <CheckCircle2 size={32} /> : <XCircle size={32} />}
-                </div>
-                <div>
-                  <h3 className={`text-2xl font-black mb-1 ${feedback.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
-                    {feedback.isCorrect ? "Tuyệt vời!" : "Chưa đúng rồi"}
-                  </h3>
-                  {!feedback.isCorrect && q.qType !== 'multiple-choice' && (
-                    <div className="text-red-900 dark:text-red-200 font-medium text-lg">
-                      Đáp án đúng: <span className="font-black text-xl">{(q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word : q.meaning}</span>
-                    </div>
-                  )}
-                  <p className={`text-sm mt-1 font-medium ${feedback.isCorrect ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-red-600/80 dark:text-red-400/80'}`}>{feedback.reason}</p>
-                </div>
+        <div className="mt-6 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800/50 rounded-2xl p-5 sm:p-6 animate-scale-in text-center shadow-lg">
+          <div className="flex flex-col items-center justify-center gap-1">
+            <XCircle size={48} className="text-red-500 mb-1" />
+            <h3 className="text-xl font-black text-red-700 dark:text-red-400">Chưa đúng rồi</h3>
+            {q.qType !== 'multiple-choice' && (
+              <div className="text-red-900 dark:text-red-200 font-medium text-base mt-2">
+                Đáp án đúng: <span className="font-black text-xl ml-1">{(q.qType === 'typing-vi-en' || q.qType === 'listen-vi') ? q.word : q.meaning}</span>
               </div>
-              <button 
-                onClick={() => nextQuestion()} 
-                className={`py-4 px-8 rounded-2xl font-black text-xl w-full sm:w-auto shadow-lg hover:-translate-y-1 transition-all ${
-                  feedback.isCorrect ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/30' : 'bg-red-500 hover:bg-red-400 text-white shadow-red-500/30'
-                }`}
-              >
-                Tiếp tục
-              </button>
-            </div>
+            )}
+            <p className="text-sm font-medium text-red-600/80 dark:text-red-400/80 mt-1">{feedback.reason}</p>
+            
+            <button 
+              onClick={() => nextQuestion()} 
+              className="mt-5 py-3 px-10 rounded-xl font-bold text-lg bg-red-500 hover:bg-red-400 text-white shadow-lg shadow-red-500/30 transition-all hover:-translate-y-1"
+            >
+              Tiếp tục
+            </button>
           </div>
         </div>
       )}
