@@ -1369,7 +1369,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
     if (feedback && gameState === 'playing') {
       timer = setTimeout(() => {
         if (autoNextRef.current) autoNextRef.current();
-      }, 1500);
+      }, feedback.isCorrect ? 800 : 1500);
     }
     return () => clearTimeout(timer);
   }, [feedback, gameState]);
@@ -1690,7 +1690,7 @@ function IntegratedQuizView({ vocabList, setIsQuizOngoing, onBack, addXP, update
         </div>
       )}
 
-      {feedback && (
+      {feedback && !feedback.isCorrect && (
         <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-banner">
           <div className={`w-full ${feedback.isCorrect ? 'bg-emerald-100 dark:bg-emerald-900 border-t-2 border-emerald-200 dark:border-emerald-800' : 'bg-red-100 dark:bg-red-900 border-t-2 border-red-200 dark:border-red-800'} p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]`}>
             <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
