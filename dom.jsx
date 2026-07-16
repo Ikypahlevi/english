@@ -1999,8 +1999,8 @@ function AudioTranscriptionView() {
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
     if (selected) {
-      if (selected.size > 10 * 1024 * 1024) {
-        showToast("File quá lớn (tối đa 10MB)", "error");
+      if (selected.size > 20 * 1024 * 1024) {
+        showToast("File quá lớn (tối đa 20MB)", "error");
         return;
       }
       setFile(selected);
