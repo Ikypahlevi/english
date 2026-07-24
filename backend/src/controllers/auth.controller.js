@@ -17,7 +17,16 @@ exports.register = async (req, res) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-      const [result] = await connection.execute("INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'user')", [email, hashedPassword]);
+      let result;
+      try {
+        [result] = await connection.execute("INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'user')", [email, hashedPassword]);
+      } catch (insertErr) {
+        if (insertErr.code === 'ER_BAD_FIELD_ERROR' || insertErr.message.includes('Unknown column')) {
+          [result] = await connection.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", [email, hashedPassword]);
+        } else {
+          throw insertErr;
+        }
+      }
       const userId = result.insertId;
       await connection.execute("INSERT INTO user_stats (user_id, xp, streak_days) VALUES (?, 0, 0)", [userId]);
       await connection.commit();
@@ -45,8 +54,9 @@ exports.login = async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) return res.status(400).json({ success: false, message: "Sai email hoặc mật khẩu." });
 
-    const token = jwt.sign({ user_id: user.user_id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, message: "Đăng nhập thành công", token, user: { user_id: user.user_id, email: user.email, role: user.role } });
+    const role = user.role || 'user';
+    const token = jwt.sign({ user_id: user.user_id, email: user.email, role: role }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, message: "Đăng nhập thành công", token, user: { user_id: user.user_id, email: user.email, role: role } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
