@@ -3,7 +3,7 @@ const multer = require("multer");
 // For now we stick to memoryStorage but add limits
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit to prevent OOM
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit to prevent OOM
 });
 
 module.exports = upload;
