@@ -381,7 +381,6 @@ export default function App() {
               )}
               {activeTab === "list" && (
                 <div className="animate-slide-up">
-                  <ErrorBoundary>
                     <VocabListView
                       user={user}
                       topics={topics}
@@ -397,7 +396,6 @@ export default function App() {
                       handleDeleteGroup={handleDeleteGroup}
                       totalVocab={totalVocab}
                     />
-                  </ErrorBoundary>
                 </div>
               )}
               {activeTab === "flashcard" && (
