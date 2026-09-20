@@ -74,7 +74,7 @@ export default function FlashcardView({ vocabList, onBack, addXP, updateSRS, onC
         <div className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-all duration-500 ease-out" style={{width: `${progress}%`}}/>
       </div>
       
-      <div className="flip-card w-full aspect-[4/3] sm:aspect-[16/9] cursor-pointer mb-10 group" onClick={() => { playSound('flip'); setIsFlipped(!isFlipped); }}>
+      <div className="flip-card w-full h-[400px] sm:h-[480px] cursor-pointer mb-10 group" onClick={() => { playSound('flip'); setIsFlipped(!isFlipped); }}>
         <div className={`flip-inner w-full h-full ${isFlipped ? "flipped" : ""}`}>
           <div className="flip-front bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center shadow-2xl shadow-brand-500/10 relative overflow-hidden group-hover:border-brand-300 transition-colors">
             <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
@@ -82,29 +82,31 @@ export default function FlashcardView({ vocabList, onBack, addXP, updateSRS, onC
                 src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=800&height=600&nologo=true`} 
                 alt="bg" 
                 className="w-full h-full object-cover blur-xl scale-110"
+                onError={(e) => e.target.style.display = 'none'}
               />
             </div>
-            <div className="relative z-10 flex flex-col items-center w-full px-4">
-              <div className="w-48 h-48 mb-8 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+            <div className="relative z-10 flex flex-col items-center justify-center w-full px-4 h-full pb-10">
+              <div className="w-28 h-28 sm:w-40 sm:h-40 mb-6 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
                  <img 
                   src={`https://image.pollinations.ai/prompt/illustration%20of%20${encodeURIComponent(currentWord.word)}%2C%20minimalist%20vector%20art%20style%2C%20white%20background?width=400&height=400&nologo=true`} 
                   alt={currentWord.word} 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover text-xs text-slate-400 flex items-center justify-center text-center"
                   loading="lazy"
+                  onError={(e) => e.target.parentElement.style.display = 'none'}
                 />
               </div>
               <div className="flex items-center gap-4 mb-3">
-                <h2 className="text-5xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tight">{currentWord.word}</h2>
-                <button onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }} className="w-14 h-14 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 dark:hover:bg-brand-800 hover:scale-110 transition-all shadow-md" title="Nghe phát âm">
-                  <Volume2 size={28} />
+                <h2 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight text-center break-words max-w-full px-2">{currentWord.word}</h2>
+                <button onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }} className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center hover:bg-brand-100 dark:hover:bg-brand-800 hover:scale-110 transition-all shadow-md" title="Nghe phát âm">
+                  <Volume2 size={24} />
                 </button>
               </div>
-              {currentWord.ipa && <p className="text-brand-500 font-mono text-2xl bg-brand-50 dark:bg-slate-800 px-6 py-2 rounded-xl inline-block font-medium">{currentWord.ipa}</p>}
+              {currentWord.ipa && <p className="text-brand-500 font-mono text-lg sm:text-xl bg-brand-50 dark:bg-slate-800 px-4 py-1.5 rounded-xl inline-block font-medium mb-4">{currentWord.ipa}</p>}
             </div>
-            <p className="absolute bottom-6 inset-x-0 text-sm text-slate-400 dark:text-slate-500 font-semibold z-10 animate-bounce">Nhấn Space để lật</p>
+            <p className="absolute bottom-4 inset-x-0 text-sm text-slate-400 dark:text-slate-500 font-semibold z-10 animate-bounce">Nhấn Space để lật</p>
           </div>
-          <div className="flip-back bg-gradient-to-br from-brand-600 to-brand-500 rounded-[2rem] flex flex-col justify-center items-center text-white shadow-2xl relative border-4 border-brand-400/30">
-            <h2 className="text-5xl sm:text-6xl font-black px-6 text-center leading-tight">{currentWord.meaning}</h2>
+          <div className="flip-back bg-gradient-to-br from-brand-600 to-brand-500 rounded-[2rem] flex flex-col justify-center items-center text-white shadow-2xl relative border-4 border-brand-400/30 overflow-y-auto p-6">
+            <h2 className="text-3xl sm:text-5xl font-black text-center leading-tight">{currentWord.meaning}</h2>
           </div>
         </div>
       </div>
