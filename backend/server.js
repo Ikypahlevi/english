@@ -39,4 +39,23 @@ app.use("/api/admin", adminRoutes);
 // Root Endpoint
 app.get("/", (req, res) => res.send("EngMaster API is running (Refactored Structure)"));
 
+// ========== DB AUTO-MIGRATE ==========
+const pool = require("./src/config/db");
+async function autoMigrate() {
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'");
+    console.log("Auto-migrated: Added role column to DB.");
+  } catch (e) {
+    if (e.code === 'ER_DUP_FIELDNAME') console.log("Role column already exists.");
+  }
+  
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
+    console.log("Auto-migrated: Added status column to DB.");
+  } catch (e) {
+    if (e.code === 'ER_DUP_FIELDNAME') console.log("Status column already exists.");
+  }
+}
+autoMigrate();
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
