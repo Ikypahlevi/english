@@ -16,7 +16,7 @@ import AuthScreen from "./views/AuthScreen.jsx";
 import SheetSelectModal from "./components/SheetSelectModal.jsx";
 import VocabListView from "./views/VocabListView.jsx";
 import FlashcardQuizWrapper from "./views/FlashcardQuizWrapper.jsx";
-import AdminDashboardView from "./views/AdminDashboardView.jsx";
+import AdminLayout from "./views/admin/AdminLayout.jsx";
 import AudioTranscriptionView from "./views/AudioTranscriptionView.jsx";
 import DashboardView from "./views/DashboardView.jsx";
 import LeaderboardView from "./views/LeaderboardView.jsx";
@@ -274,6 +274,15 @@ export default function App() {
     );
   }
 
+  if (activeTab === 'admin' && user?.role === 'admin') {
+    return (
+      <>
+        <ToastContainer />
+        <AdminLayout user={user} onBackToApp={() => setActiveTab('dashboard')} />
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <ToastContainer />
@@ -421,11 +430,6 @@ export default function App() {
               {activeTab === "leaderboard" && (
                 <div className="animate-slide-up">
                   <LeaderboardView />
-                </div>
-              )}
-              {activeTab === "admin" && user?.role === 'admin' && (
-                <div className="animate-slide-up">
-                  <AdminDashboardView />
                 </div>
               )}
             </>
