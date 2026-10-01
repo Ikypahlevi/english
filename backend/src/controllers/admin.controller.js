@@ -48,10 +48,6 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserRole = async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
-    
-    if (!['user', 'admin'].includes(role)) {
-        return res.status(400).json({ success: false, message: 'Role không hợp lệ' });
-    }
 
     if (req.user.user_id === parseInt(id)) {
         return res.status(400).json({ success: false, message: 'Không thể tự đổi quyền của mình' });
@@ -68,10 +64,6 @@ exports.updateUserRole = async (req, res) => {
 exports.updateUserStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    
-    if (!['active', 'banned'].includes(status)) {
-        return res.status(400).json({ success: false, message: 'Status không hợp lệ' });
-    }
 
     if (req.user.user_id === parseInt(id)) {
         return res.status(400).json({ success: false, message: 'Không thể tự khóa tài khoản của mình' });
