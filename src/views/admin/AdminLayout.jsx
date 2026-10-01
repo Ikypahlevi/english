@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { LayoutDashboard, Users, Settings, Database, ArrowLeft } from "lucide-react";
 import AdminOverview from "./AdminOverview";
 import AdminUserManager from "./AdminUserManager";
+import AdminContentManager from "./AdminContentManager";
+import AdminSettings from "./AdminSettings";
 
 export default function AdminLayout({ user, onBackToApp }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -69,12 +71,8 @@ export default function AdminLayout({ user, onBackToApp }) {
           <div className="max-w-6xl mx-auto animate-fade-in">
             {activeTab === "overview" && <AdminOverview />}
             {activeTab === "users" && <AdminUserManager currentUser={user} />}
-            {activeTab === "system" && (
-              <div className="py-20 text-center text-slate-500">Tính năng Quản lý Dữ liệu Hệ thống đang được phát triển...</div>
-            )}
-            {activeTab === "settings" && (
-              <div className="py-20 text-center text-slate-500">Tính năng Cài đặt chung đang được phát triển...</div>
-            )}
+            {activeTab === "system" && <AdminContentManager />}
+            {activeTab === "settings" && <AdminSettings />}
           </div>
         </div>
       </div>
