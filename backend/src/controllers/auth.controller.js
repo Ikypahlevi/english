@@ -5,7 +5,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "engmaster_super_secret_key_12345";
 
 exports.register = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ success: false, message: "Thiếu email hoặc mật khẩu." });
 
   try {
     const [existing] = await pool.execute("SELECT * FROM users WHERE email = ?", [email]);
