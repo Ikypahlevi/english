@@ -13,16 +13,38 @@ import { playSound, speakWord } from "../utils/audio.js";
 import { showToast, ToastContainer } from "../utils/toast.jsx";
 import useDarkMode from "../hooks/useDarkMode.js";
 
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().min(1, "Email không được để trống").email("Email không đúng định dạng"),
+  password: z.string().min(6, "Mật khẩu phải chứa ít nhất 6 ký tự").max(50, "Mật khẩu không được vượt quá 50 ký tự")
+});
+
 export default function AuthScreen({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [formErrors, setFormErrors] = useState({});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setFormErrors({});
+    
+    try {
+      // Zod Validation ở Client
+      authSchema.parse({ email, password });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const errors = {};
+        err.errors.forEach(e => errors[e.path[0]] = e.message);
+        setFormErrors(errors);
+        return; // Dừng lại nếu form lỗi
+      }
+    }
+
     setLoading(true);
     try {
       const endpoint = isLogin ? "/auth/login" : "/auth/register";
@@ -34,7 +56,11 @@ export default function AuthScreen({ onLoginSuccess }) {
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Đã có lỗi xảy ra");
+      if (err.response?.data?.errors) {
+        setError(err.response.data.errors.join(' | '));
+      } else {
+        setError(err.response?.data?.message || "Đã có lỗi xảy ra");
+      }
     } finally {
       setLoading(false);
     }
@@ -60,15 +86,17 @@ export default function AuthScreen({ onLoginSuccess }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-brand-500 font-medium text-slate-900 dark:text-white" 
+            <input type="email" value={email} onChange={e => {setEmail(e.target.value); setFormErrors(prev => ({...prev, email: null}))}} required
+              className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 rounded-2xl focus:outline-none font-medium text-slate-900 dark:text-white ${formErrors.email ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'}`} 
               placeholder="user@example.com" />
+            {formErrors.email && <p className="text-rose-500 text-xs mt-1.5 flex items-center gap-1"><XCircle size={12}/> {formErrors.email}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Mật khẩu</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-brand-500 font-medium text-slate-900 dark:text-white" 
+            <input type="password" value={password} onChange={e => {setPassword(e.target.value); setFormErrors(prev => ({...prev, password: null}))}} required
+              className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 rounded-2xl focus:outline-none font-medium text-slate-900 dark:text-white ${formErrors.password ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'}`} 
               placeholder="••••••••" />
+            {formErrors.password && <p className="text-rose-500 text-xs mt-1.5 flex items-center gap-1"><XCircle size={12}/> {formErrors.password}</p>}
           </div>
           
           <button type="submit" disabled={loading}
