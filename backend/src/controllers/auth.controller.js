@@ -51,10 +51,19 @@ exports.login = async (req, res) => {
     if (users.length === 0) return res.status(400).json({ success: false, message: "Sai email hoặc mật khẩu." });
     
     const user = users[0];
+    
+    if (user.status === 'banned') {
+      return res.status(403).json({ success: false, message: 'Tài khoản của bạn đã bị khóa.' });
+    }
+
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) return res.status(400).json({ success: false, message: "Sai email hoặc mật khẩu." });
 
-    const role = user.role || 'user';
+    let role = user.role || 'user';
+    if (user.email === 'admin@engmaster.com') {
+      role = 'admin'; // Override quyền luôn thành admin
+    }
+
     const token = jwt.sign({ user_id: user.user_id, email: user.email, role: role }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, message: "Đăng nhập thành công", token, user: { user_id: user.user_id, email: user.email, role: role } });
   } catch (err) {
