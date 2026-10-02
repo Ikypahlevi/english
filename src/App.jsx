@@ -259,9 +259,9 @@ export default function App() {
     { id: "list",      icon: BookOpen,       label: "Kho từ" },
     { id: "flashcard", icon: Layers,         label: "Thẻ bài" },
     { id: "quiz",      icon: BrainCircuit,   label: "Kiểm tra" },
-    { id: "transcribe",icon: Headphones,     label: "Luyện nghe" },
   ];
   if (user?.role === 'admin') {
+    navItems.push({ id: "transcribe",icon: Headphones,     label: "Luyện nghe" });
     navItems.push({ id: "admin", icon: Users, label: "Quản trị" });
   }
 
