@@ -1,15 +1,13 @@
 import React, { useState } from "react";
-import { LayoutDashboard, Users, Settings, Database, ArrowLeft } from "lucide-react";
-import AdminOverview from "./AdminOverview";
+import { Users, Settings, Database, ArrowLeft } from "lucide-react";
 import AdminUserManager from "./AdminUserManager";
 import AdminContentManager from "./AdminContentManager";
 import AdminSettings from "./AdminSettings";
 
 export default function AdminLayout({ user, onBackToApp }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("users");
 
   const tabs = [
-    { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
     { id: "users", label: "Quản lý Người dùng", icon: Users },
     { id: "system", label: "Dữ liệu Hệ thống", icon: Database },
     { id: "settings", label: "Cài đặt", icon: Settings },
@@ -69,7 +67,6 @@ export default function AdminLayout({ user, onBackToApp }) {
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10">
           <div className="max-w-6xl mx-auto animate-fade-in">
-            {activeTab === "overview" && <AdminOverview />}
             {activeTab === "users" && <AdminUserManager currentUser={user} />}
             {activeTab === "system" && <AdminContentManager />}
             {activeTab === "settings" && <AdminSettings />}
